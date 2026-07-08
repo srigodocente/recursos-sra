@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Dianes d'Avaluació (Interactiu)</title>
+    
+    <!-- Tailwind CSS per a un disseny ràpid i adaptable -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js per a la creació de gràfics -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- html2canvas per a exportar el gràfic com a imatge -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    
+    <!-- Google Fonts per a una tipografia més atractiva -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; cursor: pointer; }
+        input[type=range]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; cursor: pointer; }
+        .transition-all { transition: all 0.3s ease-in-out; }
+        .chart-container { position: relative; padding: 20px; border-radius: 12px; }
+        #radarChart { cursor: default; }
+        .focused-input { transition: all 0.3s; background-color: #e0f2fe !important; transform: scale(1.02); }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 transition-all">
+
+    <div class="container mx-auto p-4 md:p-8">
+        
+        <header class="text-center mb-8">
+            <h1 class="text-4xl font-bold text-blue-600 dark:text-blue-400">Creador de dianes d'avaluació</h1>
+            <p class="text-lg mt-2 text-gray-600 dark:text-gray-400">Personalitza, visualitza i exporta els teus gràfics de radar fàcilment.</p>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Panel de Controls -->
+            <aside class="lg:col-span-1 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg flex flex-col">
+                <div>
+                    <h2 class="text-2xl font-semibold mb-6 border-b pb-3 border-gray-200 dark:border-gray-700">Configuració</h2>
+                    
+                    <div class="space-y-6">
+                        <div>
+                            <label for="chartTitle" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Títol del Gràfic</label>
+                            <input type="text" id="chartTitle" value="Diana d'avaluació..." class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                        </div>
+                        
+                        <div>
+                            <label for="chartStyle" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Estil Visual</label>
+                            <select id="chartStyle" class="w-full bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
+                                <option value="moderno">Modern (Clar)</option>
+                                <option value="oscuro">Modern (Fosc)</option>
+                                <option value="clasico">Clàssic</option>
+                                <option value="energetico">Energètic</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="datasetColor" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Color de l'Àrea</label>
+                            <input type="color" id="datasetColor" value="#3b82f6" class="w-full h-10 p-1 bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg cursor-pointer">
+                        </div>
+                    </div>
+
+                    <div class="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700 space-y-3">
+                         <button id="resetBtn" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition-all flex items-center justify-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" /></svg>
+                            Reinicia Valors
+                        </button>
+                        <button id="downloadBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition-all flex items-center justify-center text-lg">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            Descarrega com a PNG
+                        </button>
+                    </div>
+                </div>
+            </aside>
+
+            <div class="lg:col-span-2 flex items-center justify-center">
+                <div id="chartWrapper" class="w-full h-full bg-white dark:bg-gray-800 p-4 rounded-xl shadow-lg transition-all">
+                    <canvas id="radarChart"></canvas>
+                </div>
+            </div>
+        </main>
+
+        <!-- NOU: Container inferior per a les categories -->
+        <footer class="mt-8 bg-white dark:bg-gray-800 p-6 rounded-xl shadow-lg">
+            <div>
+                <h3 class="text-xl font-semibold mb-4 text-center">Categories i Valors (1-5)</h3>
+                <div id="categoriesContainer" class="grid grid-cols-3 gap-4">
+                    <!-- Les categories s'inseriran aquí dinàmicament -->
+                </div>
+                <div class="flex justify-center mt-6">
+                     <button id="addCategoryBtn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-all flex items-center justify-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" /></svg>
+                        Afegeix Categoria
+                    </button>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const chartTitleInput = document.getElementById('chartTitle');
+            const chartStyleSelect = document.getElementById('chartStyle');
+            const datasetColorInput = document.getElementById('datasetColor');
+            const categoriesContainer = document.getElementById('categoriesContainer');
+            const addCategoryBtn = document.getElementById('addCategoryBtn');
+            const resetBtn = document.getElementById('resetBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const chartWrapper = document.getElementById('chartWrapper');
+            const canvas = document.getElementById('radarChart');
+            const ctx = canvas.getContext('2d');
+            
+            let chartInstance;
+            let draggingPointIndex = -1;
+
+            const defaultState = {
+                title: "Diana d'avaluació...",
+                style: 'moderno',
+                datasetColor: '#3b82f6',
+                categories: [
+                    { label: 'Comunicació', value: 4 },
+                    { label: 'Lideratge', value: 5 },
+                    { label: 'Treball en Equip', value: 3 },
+                    { label: 'Creativitat', value: 5 },
+                    { label: 'Resolució de Problemes', value: 4 },
+                    { label: 'Adaptabilitat', value: 2 },
+                ]
+            };
+            let appState = JSON.parse(JSON.stringify(defaultState));
+
+            const chartStyles = {
+                moderno: { bg: 'bg-white', wrapperBg: 'bg-white', bodyColor: '#1f2937', titleColor: '#1f2937', gridColor: 'rgba(0, 0, 0, 0.1)', ticksColor: '#6b7280', pointBgColor: '#ffffff' },
+                oscuro: { bg: 'bg-gray-900', wrapperBg: 'bg-gray-800', bodyColor: '#f3f4f6', titleColor: '#f3f4f6', gridColor: 'rgba(255, 255, 255, 0.15)', ticksColor: '#9ca3af', pointBgColor: '#4b5563' },
+                clasico: { bg: 'bg-stone-100', wrapperBg: 'bg-stone-100', bodyColor: '#333333', titleColor: '#333333', gridColor: 'rgba(0, 0, 0, 0.2)', ticksColor: '#555555', pointBgColor: '#f8fafc' },
+                energetico: { bg: 'bg-slate-900', wrapperBg: 'bg-slate-800', bodyColor: '#cbd5e1', titleColor: '#f59e0b', gridColor: 'rgba(255, 255, 255, 0.2)', ticksColor: '#94a3b8', pointBgColor: '#1e293b' }
+            };
+
+            function renderChart() {
+                if (chartInstance) {
+                    chartInstance.destroy();
+                }
+                const currentStyle = chartStyles[appState.style];
+                chartInstance = new Chart(ctx, {
+                    type: 'radar',
+                    data: {
+                        labels: appState.categories.map(cat => cat.label),
+                        datasets: [{
+                            label: 'Puntuació',
+                            data: appState.categories.map(cat => cat.value),
+                            fill: true,
+                            backgroundColor: hexToRgba(appState.datasetColor, 0.2),
+                            borderColor: appState.datasetColor,
+                            pointBackgroundColor: appState.datasetColor,
+                            pointBorderColor: currentStyle.pointBgColor,
+                            pointHoverBackgroundColor: currentStyle.pointBgColor,
+                            pointHoverBorderColor: appState.datasetColor,
+                            borderWidth: 2,
+                            pointRadius: 6,
+                            pointHoverRadius: 10
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: { display: true, text: appState.title, font: { size: 20, family: 'Inter', weight: 'bold' }, color: currentStyle.titleColor, padding: { bottom: 20 } },
+                            legend: { display: false }
+                        },
+                        scales: {
+                            r: {
+                                beginAtZero: false,
+                                min: 1,
+                                max: 5,
+                                grid: { color: currentStyle.gridColor },
+                                angleLines: { color: currentStyle.gridColor },
+                                pointLabels: { font: { size: 14, family: 'Inter', weight: '500' }, color: currentStyle.bodyColor },
+                                ticks: { backdropColor: 'transparent', color: currentStyle.ticksColor, font: { size: 10 }, stepSize: 1 }
+                            }
+                        },
+                        elements: { line: { tension: 0.1 } }
+                    }
+                });
+            }
+
+            function renderCategoryControls() {
+                categoriesContainer.innerHTML = '';
+                appState.categories.forEach((category, index) => {
+                    const categoryEl = document.createElement('div');
+                    categoryEl.className = 'p-3 bg-gray-100 dark:bg-gray-700/50 rounded-lg flex flex-col items-center text-center';
+                    categoryEl.id = `category-control-${index}`;
+                    categoryEl.innerHTML = `
+                        <div class="flex items-center justify-center w-full mb-2">
+                            <input type="text" value="${category.label}" data-index="${index}" class="category-label-input w-full bg-transparent font-semibold focus:ring-0 border-0 p-0 text-center text-sm">
+                            <button data-index="${index}" class="remove-category-btn text-red-500 hover:text-red-700 dark:hover:text-red-400 p-0 rounded-full ml-1 flex-shrink-0">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" /></svg>
+                            </button>
+                        </div>
+                        <div class="flex flex-col items-center mt-1 w-full">
+                            <input type="range" min="1" max="5" step="0.5" value="${category.value}" data-index="${index}" class="category-value-slider w-full h-2 bg-gray-200 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer">
+                            <span class="font-bold text-blue-600 dark:text-blue-400 mt-2 text-sm">${category.value}</span>
+                        </div>
+                    `;
+                    categoriesContainer.appendChild(categoryEl);
+                });
+                addCategoryEventListeners();
+            }
+
+            function addCategoryEventListeners() {
+                document.querySelectorAll('.category-label-input').forEach(input => {
+                    input.addEventListener('input', e => {
+                        appState.categories[e.target.dataset.index].label = e.target.value;
+                        renderChart();
+                    });
+                });
+                document.querySelectorAll('.category-value-slider').forEach(slider => {
+                    slider.addEventListener('input', e => {
+                        const value = parseFloat(e.target.value);
+                        appState.categories[e.target.dataset.index].value = value;
+                        e.target.nextElementSibling.textContent = value;
+                        renderChart();
+                    });
+                });
+                document.querySelectorAll('.remove-category-btn').forEach(button => {
+                    button.addEventListener('click', e => {
+                        appState.categories.splice(e.currentTarget.dataset.index, 1);
+                        updateAndRender();
+                    });
+                });
+            }
+
+            function applyTheme(styleName) {
+                const style = chartStyles[styleName];
+                document.body.className = `transition-all ${style.bg} text-gray-800 dark:text-gray-200`;
+                chartWrapper.className = `w-full h-full p-4 rounded-xl shadow-lg transition-all ${style.wrapperBg}`;
+                document.documentElement.classList.toggle('dark', styleName === 'oscuro' || styleName === 'energetico');
+                
+                const sliderThumbColor = appState.datasetColor;
+                const styleTag = document.getElementById('slider-style') || document.createElement('style');
+                styleTag.id = 'slider-style';
+                styleTag.innerHTML = `
+                    input[type=range]::-webkit-slider-thumb { background: ${sliderThumbColor}; }
+                    input[type=range]::-moz-range-thumb { background: ${sliderThumbColor}; }
+                `;
+                document.head.appendChild(styleTag);
+            }
+
+            function updateAndRender() {
+                applyTheme(appState.style);
+                renderCategoryControls();
+                renderChart();
+            }
+            
+            function getMousePos(canvas, evt) {
+                const rect = canvas.getBoundingClientRect();
+                return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
+            }
+
+            function getPointAtEvent(e) {
+                const points = chartInstance.getElementsAtEventForMode(e, 'point', { intersect: true }, false);
+                return points.length ? points[0] : null;
+            }
+            
+            function getLabelAtEvent(e) {
+                const pos = getMousePos(canvas, e);
+                const scale = chartInstance.scales.r;
+                if (!scale._pointLabelItems) return null;
+
+                for(let i = 0; i < scale._pointLabelItems.length; i++) {
+                    const item = scale._pointLabelItems[i];
+                    if (pos.x >= item.left && pos.x <= item.right && pos.y >= item.top && pos.y <= item.bottom) {
+                        return { index: i };
+                    }
+                }
+                return null;
+            }
+
+            canvas.addEventListener('mousedown', (e) => {
+                const point = getPointAtEvent(e);
+                if (point) {
+                    draggingPointIndex = point.index;
+                    canvas.style.cursor = 'grabbing';
+                }
+            });
+
+            canvas.addEventListener('mouseup', () => {
+                draggingPointIndex = -1;
+                canvas.style.cursor = 'default';
+                renderChart();
+            });
+
+            canvas.addEventListener('mousemove', (e) => {
+                const pos = getMousePos(canvas, e);
+                const point = getPointAtEvent(e);
+                const label = getLabelAtEvent(e);
+
+                if (draggingPointIndex > -1) {
+                    const scale = chartInstance.scales.r;
+                    const centerX = scale.xCenter;
+                    const centerY = scale.yCenter;
+                    const distance = Math.sqrt(Math.pow(pos.x - centerX, 2) + Math.pow(pos.y - centerY, 2));
+                    const maxRadius = scale.drawingArea;
+                    
+                    let value = (distance / maxRadius) * (scale.max - scale.min) + scale.min;
+                    value = Math.max(scale.min, Math.min(scale.max, value));
+                    value = Math.round(value * 2) / 2;
+
+                    if (appState.categories[draggingPointIndex].value !== value) {
+                        appState.categories[draggingPointIndex].value = value;
+                        updateAndRender();
+                    }
+                } else if (point || label) {
+                    canvas.style.cursor = 'pointer';
+                } else {
+                    canvas.style.cursor = 'default';
+                }
+            });
+
+            canvas.addEventListener('click', (e) => {
+                if (draggingPointIndex === -1) {
+                    const label = getLabelAtEvent(e);
+                    if (label) {
+                        const controlPanel = document.getElementById(`category-control-${label.index}`);
+                        const input = controlPanel.querySelector('.category-label-input');
+                        document.querySelectorAll('.focused-input').forEach(el => el.classList.remove('focused-input'));
+                        controlPanel.classList.add('focused-input');
+                        input.focus();
+                        input.select();
+                        setTimeout(() => controlPanel.classList.remove('focused-input'), 1500);
+                    }
+                }
+            });
+
+            chartTitleInput.addEventListener('input', e => { appState.title = e.target.value; renderChart(); });
+            chartStyleSelect.addEventListener('change', e => { appState.style = e.target.value; updateAndRender(); });
+            datasetColorInput.addEventListener('input', e => { appState.datasetColor = e.target.value; updateAndRender(); });
+            addCategoryBtn.addEventListener('click', () => { appState.categories.push({ label: `Nova`, value: 3 }); updateAndRender(); });
+            resetBtn.addEventListener('click', () => { if(confirm("Estàs segur que vols reiniciar tots els valors?")) { appState = JSON.parse(JSON.stringify(defaultState)); chartTitleInput.value = appState.title; chartStyleSelect.value = appState.style; datasetColorInput.value = appState.datasetColor; updateAndRender(); } });
+            downloadBtn.addEventListener('click', () => {
+                const originalBg = chartWrapper.style.backgroundColor;
+                const style = chartStyles[appState.style];
+                if (style.wrapperBg === 'bg-white') chartWrapper.style.backgroundColor = '#ffffff';
+                if (style.wrapperBg === 'bg-gray-800') chartWrapper.style.backgroundColor = '#1f2937';
+                if (style.wrapperBg === 'bg-stone-100') chartWrapper.style.backgroundColor = '#f5f5f4';
+                if (style.wrapperBg === 'bg-slate-800') chartWrapper.style.backgroundColor = '#1e293b';
+                
+                html2canvas(chartWrapper, { scale: 2, logging: false, useCORS: true }).then(canvas => {
+                    const link = document.createElement('a');
+                    link.download = `${appState.title.replace(/ /g, '_')}.png`;
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                    chartWrapper.style.backgroundColor = originalBg;
+                });
+            });
+
+            function hexToRgba(hex, alpha) {
+                let r = 0, g = 0, b = 0;
+                if (hex.length == 4) { r = "0x" + hex[1] + hex[1]; g = "0x" + hex[2] + hex[2]; b = "0x" + hex[3] + hex[3]; } 
+                else if (hex.length == 7) { r = "0x" + hex[1] + hex[2]; g = "0x" + hex[3] + hex[4]; b = "0x" + hex[5] + hex[6]; }
+                return `rgba(${+r},${+g},${+b},${alpha})`;
+            }
+
+            updateAndRender();
+        });
+    </script>
+</body>
+</html>

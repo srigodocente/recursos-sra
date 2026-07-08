@@ -1,0 +1,526 @@
+<DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tauler Kanban</title>
+    <!-- Càrrega de Tailwind CSS per a l'estil. -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Importació de Phosphor Icons, usats a l'altre fitxer. -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        /* CSS PERSONALITZAT copiat de l'altre document per unificar l'estil */
+        
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800&display=swap');
+
+        body {
+            /* Aplica la font Nunito */
+            font-family: 'Nunito', sans-serif;
+            background-color: #f3f4f6;
+            color: #1f2937;
+        }
+
+        /* Estils per a la funció d'arrossegar i deixar anar */
+        .card[draggable="true"]:hover {
+            cursor: grab;
+            box-shadow: 0 4px 12px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            transform: translateY(-2px);
+            transition: transform 0.15s ease-out;
+        }
+
+        .card[draggable="false"]:hover {
+            cursor: default; /* No arrossegable durant l'edició */
+        }
+        
+        /* Efecte visual quan una targeta s'arrossega sobre una columna */
+        .column-container.drag-over {
+            @apply ring-4 ring-offset-4 ring-indigo-400/50 bg-gray-100;
+        }
+
+        /* Botons amb estil 3D per als controls principals (com l'altre document) */
+        .button-primary {
+            @apply bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-[0.98] shadow-lg border-b-4 border-indigo-800;
+        }
+        .button-secondary {
+            @apply bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-[0.98] border-b-4 border-gray-400;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <!-- Capçalera amb colors invertits: Fons fosc i text clar -->
+    <header class="mb-8 p-6 bg-indigo-700 rounded-xl shadow-lg text-white">
+        <h1 class="text-4xl font-extrabold text-white mb-2 flex items-center gap-3">
+            <i class="ph ph-clipboard-text text-4xl"></i>
+            Tauler Kanban
+        </h1>
+        <p class="text-indigo-100">Organitza les tasques arrossegant-les entre les columnes. Les dades es guarden automàticament.</p>
+    </header>
+
+    <div id="kanban-board" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Les columnes es generaran dinàmicament aquí -->
+    </div>
+
+    <script>
+        // Configuració de les columnes amb els seus IDs, títols i classes de color de Tailwind.
+        // Hem actualitzat les classes de color per coincidir amb l'estil més suau i net.
+        const COLUMN_CONFIG = [
+            { id: 'pending', title: 'Pendent', colorClass: 'bg-red-500/10 text-red-700 border-red-500', headerBg: 'bg-red-100' },
+            { id: 'in-progress', title: 'En progrés', colorClass: 'bg-amber-500/10 text-amber-700 border-amber-500', headerBg: 'bg-amber-100' },
+            { id: 'completed', title: 'Completat', colorClass: 'bg-green-500/10 text-green-700 border-green-500', headerBg: 'bg-green-100' }
+        ];
+
+        // L'estructura de dades del tauler
+        let board = {}; 
+
+        // Genera un ID únic per a les noves targetes
+        const generateId = () => `card-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
+        // --- FUNCIONS DE PERSISTÈNCIA (localStorage) ---
+
+        /**
+         * Carrega l'estat del tauler des del localStorage.
+         */
+        function loadBoard() {
+            try {
+                const storedBoard = localStorage.getItem('kanbanBoardData');
+                if (storedBoard) {
+                    board = JSON.parse(storedBoard);
+                } else {
+                    // Inicialitza un tauler buit si no hi ha dades guardades
+                    COLUMN_CONFIG.forEach(col => { board[col.id] = []; });
+                }
+            } catch (e) {
+                console.error("Error carregant dades del localStorage:", e);
+                COLUMN_CONFIG.forEach(col => { board[col.id] = []; });
+            }
+        }
+
+        /**
+         * Guarda l'estat actual del tauler al localStorage.
+         */
+        function saveBoard() {
+            try {
+                localStorage.setItem('kanbanBoardData', JSON.stringify(board));
+                // console.log('Dades guardades correctament.');
+            } catch (e) {
+                console.error("Error guardant dades al localStorage:", e);
+            }
+        }
+
+        // --- FUNCIONS D'EDICIÓ DE TARGETES ---
+        
+        /**
+         * Guarda el text editat d'una targeta, actualitza el model i el DOM, i desa la persistència.
+         * @param {string} cardId - L'ID de la targeta.
+         * @param {string} columnId - L'ID de la columna.
+         */
+        window.saveCardEdit = function(cardId, columnId) {
+            const cardElement = document.getElementById(cardId);
+            const textarea = cardElement.querySelector('.card-edit-textarea');
+            const newText = textarea.value.trim();
+
+            if (!newText) {
+                // Utilitzem un missatge a la consola en lloc d'alert()
+                console.error("El contingut de la tasca no pot ser buit.");
+                return;
+            }
+
+            // 1. Actualitza el DOM
+            const displayText = cardElement.querySelector('.card-display-text');
+            displayText.textContent = newText;
+            
+            // 2. Actualitza el model (board)
+            const cardIndex = board[columnId].findIndex(card => card.id === cardId);
+            if (cardIndex !== -1) {
+                board[columnId][cardIndex].text = newText;
+                saveBoard(); // Guarda la persistència
+            }
+
+            // 3. Torna al mode de visualització
+            toggleEditMode(cardId, false);
+        }
+
+        /**
+         * Canvia entre mode de visualització i mode d'edició per a una targeta.
+         * @param {string} cardId - L'ID de la targeta.
+         * @param {boolean} isEditing - Si s'ha d'activar (true) o desactivar (false) el mode d'edició.
+         */
+        window.toggleEditMode = function(cardId, isEditing) {
+            const cardElement = document.getElementById(cardId);
+            const displayGroup = cardElement.querySelector('.card-display-group');
+            const editGroup = cardElement.querySelector('.card-edit-group');
+
+            if (isEditing) {
+                // Entra en mode edició
+                const displayText = cardElement.querySelector('.card-display-text').textContent;
+                const textarea = cardElement.querySelector('.card-edit-textarea');
+                
+                // Omple el textarea amb el text actual
+                textarea.value = displayText;
+                
+                // Amaga mode visualització i mostra mode edició
+                displayGroup.classList.add('hidden');
+                editGroup.classList.remove('hidden');
+                
+                // Desactiva l'arrossegament durant l'edició
+                cardElement.setAttribute('draggable', 'false');
+                cardElement.classList.add('ring-2', 'ring-indigo-400'); // Indicador visual d'edició
+                textarea.focus(); // Enfoca el textarea per a l'edició immediata
+            } else {
+                // Torna al mode de visualització
+                displayGroup.classList.remove('hidden');
+                editGroup.classList.add('hidden');
+
+                // Reactiva l'arrossegament
+                cardElement.setAttribute('draggable', 'true');
+                cardElement.classList.remove('ring-2', 'ring-indigo-400');
+            }
+        }
+
+
+        // --- FUNCIONS DE MANIPULACIÓ DEL DOM / RENDERITZAT ---
+
+        /**
+         * Crea un element de targeta Kanban (Card).
+         * @param {Object} cardData - Objecte amb { id, text, column }.
+         * @returns {HTMLElement} L'element div de la targeta.
+         */
+        function createCardElement(cardData) {
+            const card = document.createElement('div');
+            // Estilització de targeta més moderna
+            card.className = 'card bg-white p-4 rounded-xl shadow-md mb-3 text-gray-800 text-sm border-l-4 border-indigo-400 transition duration-150 ease-in-out';
+            card.setAttribute('draggable', 'true');
+            card.id = cardData.id;
+            
+            // Mode de VISUALITZACIÓ (per defecte)
+            const displayGroup = document.createElement('div');
+            displayGroup.className = 'card-display-group';
+            displayGroup.innerHTML = `
+                <div class="flex justify-between items-start">
+                    <span class="card-display-text break-words w-4/5">${cardData.text}</span>
+                    <div class="flex space-x-1">
+                        <!-- Botó d'EDITAR -->
+                        <button onclick="toggleEditMode('${cardData.id}', true)" class="edit-button text-gray-400 hover:text-indigo-500 p-1 rounded-full transition-colors leading-none" aria-label="Editar tasca">
+                            <!-- Icona de llapis Phosphor -->
+                            <i class="ph ph-pencil-simple-line text-lg"></i>
+                        </button>
+                        <!-- Botó d'ESBORRAR -->
+                        <button onclick="deleteCard('${cardData.id}', '${cardData.column}')" class="delete-button text-gray-400 hover:text-red-500 p-1 rounded-full transition-colors leading-none" aria-label="Esborrar tasca">
+                            <!-- Icona de tancar (X) Phosphor -->
+                            <i class="ph ph-x-circle text-lg"></i>
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Mode d'EDICIÓ (inicialment ocult)
+            const editGroup = document.createElement('div');
+            editGroup.className = 'card-edit-group hidden';
+            editGroup.innerHTML = `
+                <textarea class="card-edit-textarea w-full p-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 transition resize-none mb-2" rows="3"></textarea>
+                <div class="flex justify-end space-x-2">
+                    <button onclick="toggleEditMode('${cardData.id}', false)" class="button-secondary px-3 py-1 text-sm">
+                        Cancel·la
+                    </button>
+                    <button onclick="saveCardEdit('${cardData.id}', '${cardData.column}')" class="button-primary px-3 py-1 text-sm border-b-2">
+                        Guarda
+                    </button>
+                </div>
+            `;
+
+            card.appendChild(displayGroup);
+            card.appendChild(editGroup);
+
+            // Assigna els manejadors d'arrossegar i deixar anar
+            card.addEventListener('dragstart', dragStart);
+            return card;
+        }
+
+        /**
+         * Elimina una targeta tant del DOM com de l'estructura de dades.
+         * @param {string} cardId - L'ID de la targeta a esborrar.
+         * @param {string} columnId - L'ID de la columna on es troba la targeta.
+         */
+        window.deleteCard = function(cardId, columnId) {
+            // Elimina del model (board)
+            board[columnId] = board[columnId].filter(card => card.id !== cardId);
+            
+            // Elimina del DOM
+            const cardElement = document.getElementById(cardId);
+            if (cardElement) {
+                cardElement.remove();
+            }
+
+            saveBoard();
+            // No cal fer un re-renderitzat complet, només si es vol actualitzar el recompte
+            updateCardCount(columnId);
+        }
+
+
+        /**
+         * Crea el formulari per afegir una nova targeta.
+         * @param {string} columnId - L'ID de la columna on s'afegirà la targeta.
+         * @returns {HTMLElement} L'element div del formulari.
+         */
+        function createAddForm(columnId) {
+            const form = document.createElement('form');
+            form.className = 'mt-4';
+            form.innerHTML = `
+                <textarea id="input-${columnId}" class="w-full p-2 text-sm rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 transition resize-none" rows="2" placeholder="Descriu la tasca..."></textarea>
+                <button type="submit" class="w-full mt-2 button-primary">
+                    <i class="ph ph-plus-circle text-xl"></i> Afegeix tasca
+                </button>
+            `;
+            form.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const textarea = document.getElementById(`input-${columnId}`);
+                const text = textarea.value.trim();
+                if (text) {
+                    addCard(columnId, text);
+                    textarea.value = ''; // Neteja l'entrada
+                }
+            });
+            return form;
+        }
+        
+        /**
+         * Afegeix una targeta a l'estructura de dades i actualitza el DOM.
+         * @param {string} columnId - L'ID de la columna.
+         * @param {string} text - El text de la targeta.
+         */
+        function addCard(columnId, text) {
+            const newCard = {
+                id: generateId(),
+                text: text,
+                column: columnId
+            };
+            
+            // Afegeix al model
+            board[columnId].push(newCard);
+            
+            // Afegeix al DOM
+            const cardContainer = document.getElementById(`cards-${columnId}`);
+            const cardElement = createCardElement(newCard);
+            cardContainer.appendChild(cardElement);
+
+            saveBoard();
+            updateCardCount(columnId);
+        }
+
+        /**
+         * Renderitza o re-renderitza totes les columnes i targetes al tauler.
+         */
+        function renderBoard() {
+            const boardElement = document.getElementById('kanban-board');
+            boardElement.innerHTML = ''; // Neteja el tauler abans de renderitzar
+
+            COLUMN_CONFIG.forEach(colConfig => {
+                // Afegim la classe de color del header i eliminem el border-t-8 per usar shadow
+                const column = document.createElement('div');
+                column.className = `column-container ${colConfig.headerBg} p-4 rounded-xl shadow-2xl h-full flex flex-col border border-gray-200`;
+                column.setAttribute('data-column-id', colConfig.id);
+                column.addEventListener('dragover', dragOver);
+                column.addEventListener('drop', drop);
+                column.addEventListener('dragleave', dragLeave);
+                column.addEventListener('dragenter', dragEnter);
+
+                column.innerHTML = `
+                    <h2 class="text-xl font-extrabold mb-4 flex justify-between items-center text-gray-800">
+                        ${colConfig.title}
+                        <span id="count-${colConfig.id}" class="text-sm font-bold px-3 py-1 rounded-full bg-white text-gray-600 shadow-inner">
+                            0
+                        </span>
+                    </h2>
+                    <div id="cards-${colConfig.id}" class="cards-container flex-grow min-h-[50px] overflow-y-auto pr-1">
+                        <!-- Les targetes aniran aquí -->
+                    </div>
+                `;
+
+                // Afegeix el formulari per afegir tasques
+                const cardContainer = column.querySelector(`#cards-${colConfig.id}`);
+                const addForm = createAddForm(colConfig.id);
+                
+                // Omple la columna amb les targetes existents
+                const cards = board[colConfig.id] || [];
+                cards.forEach(cardData => {
+                    cardContainer.appendChild(createCardElement(cardData));
+                });
+                
+                column.appendChild(addForm);
+                boardElement.appendChild(column);
+
+                updateCardCount(colConfig.id);
+            });
+        }
+        
+        /**
+         * Actualitza el comptador de targetes d'una columna específica.
+         * @param {string} columnId - L'ID de la columna.
+         */
+        function updateCardCount(columnId) {
+            const countElement = document.getElementById(`count-${columnId}`);
+            const cards = board[columnId] || [];
+            if (countElement) {
+                countElement.textContent = cards.length;
+            }
+        }
+
+
+        // --- FUNCIONS D'ARROSSEGAR I DEIXAR ANAR (Drag and Drop) ---
+        let draggedCardId = null;
+
+        /**
+         * S'activa quan es comença a arrossegar una targeta.
+         * @param {Event} e 
+         */
+        function dragStart(e) {
+            // Només es pot arrossegar si no està en mode d'edició (draggable="true")
+            if (e.target.getAttribute('draggable') === 'false') {
+                e.preventDefault();
+                return;
+            }
+            draggedCardId = e.target.id;
+            // Afegeix una classe per fer que la targeta arrossegada sigui menys visible
+            setTimeout(() => e.target.classList.add('opacity-40'), 0);
+            e.dataTransfer.setData('text/plain', draggedCardId);
+        }
+
+        /**
+         * S'activa quan una targeta arrossegada entra en una columna.
+         * @param {Event} e 
+         */
+        function dragEnter(e) {
+            e.preventDefault();
+            const container = e.currentTarget;
+            if (container && container.classList.contains('column-container')) {
+                container.classList.add('drag-over');
+            }
+        }
+
+        /**
+         * S'activa contínuament mentre la targeta es mou sobre una columna.
+         * @param {Event} e 
+         */
+        function dragOver(e) {
+            e.preventDefault(); // Necessari per permetre 'drop'
+        }
+
+        /**
+         * S'activa quan la targeta arrossegada surt de la columna.
+         * @param {Event} e 
+         */
+        function dragLeave(e) {
+            const container = e.currentTarget;
+            if (container && container.classList.contains('column-container')) {
+                container.classList.remove('drag-over');
+            }
+        }
+
+        /**
+         * S'activa quan es deixa anar la targeta sobre una columna.
+         * @param {Event} e 
+         */
+        function drop(e) {
+            e.preventDefault();
+            const targetColumn = e.currentTarget;
+            targetColumn.classList.remove('drag-over');
+
+            if (!targetColumn || !targetColumn.classList.contains('column-container')) {
+                return; // Assegura't que l'element de destinació sigui una columna
+            }
+
+            const newColumnId = targetColumn.getAttribute('data-column-id');
+            const cardElement = document.getElementById(draggedCardId);
+            
+            if (cardElement && newColumnId) {
+                
+                // 1. TROBA LA TARGETA AL MODEL I DETERMINA LA COLUMNA ANTERIOR
+                let oldColumnId = null;
+                let cardData = null;
+
+                // Busca la targeta a totes les columnes
+                for (const colId in board) {
+                    const index = board[colId].findIndex(card => card.id === draggedCardId);
+                    if (index !== -1) {
+                        oldColumnId = colId;
+                        cardData = board[colId][index];
+                        // 2. ELIMINA LA TARGETA DE LA COLUMNA ANTIGA
+                        board[colId].splice(index, 1);
+                        break;
+                    }
+                }
+
+                // 3. AFEGEIX LA TARGETA A LA NOVA COLUMNA
+                if (cardData && oldColumnId !== newColumnId) {
+                    cardData.column = newColumnId; // Actualitza l'ID de columna al model de targeta
+                    board[newColumnId].push(cardData);
+                    
+                    // 4. ACTUALITZA EL DOM (mou la targeta)
+                    const newContainer = targetColumn.querySelector(`#cards-${newColumnId}`);
+                    newContainer.appendChild(cardElement);
+
+                    // 5. GUARDA L'ESTAT I ACTUALITZA ELS COMPTES
+                    saveBoard();
+                    updateCardCount(oldColumnId);
+                    updateCardCount(newColumnId);
+
+                } else if (cardData && oldColumnId === newColumnId) {
+                    // Si es deixa anar a la mateixa columna, només actualitza el DOM sense moure al model
+                    const newContainer = targetColumn.querySelector(`#cards-${newColumnId}`);
+                    // Troba on es va deixar anar la targeta (ajust visual)
+                    const afterElement = getDragAfterElement(newContainer, e.clientY);
+                    
+                    if (afterElement == null) {
+                        newContainer.appendChild(cardElement);
+                    } else {
+                        newContainer.insertBefore(cardElement, afterElement);
+                    }
+                    
+                    // Per a una reordenació real, hauríem de reordenar l'array board[newColumnId]
+                    // (Ometem per simplificar, ja que només es demana moviment entre columnes)
+                }
+
+                // Neteja l'estat i la classe visual
+                cardElement.classList.remove('opacity-40');
+                draggedCardId = null;
+            }
+        }
+        
+        /**
+         * Funció auxiliar per determinar on s'hauria d'inserir l'element arrossegat per mantenir l'ordre.
+         * (Opcional, però millora l'experiència d'usuari dins de la columna)
+         * @param {HTMLElement} container 
+         * @param {number} y 
+         * @returns {HTMLElement | null} L'element abans del qual s'ha d'inserir el nou element.
+         */
+        function getDragAfterElement(container, y) {
+            const draggableElements = [...container.querySelectorAll('.card:not(.dragging)')];
+
+            return draggableElements.reduce((closest, child) => {
+                const box = child.getBoundingClientRect();
+                const offset = y - box.top - box.height / 2;
+                if (offset < 0 && offset > closest.offset) {
+                    return { offset: offset, element: child };
+                } else {
+                    return closest;
+                }
+            }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+
+        // --- INICIALITZACIÓ ---
+
+        /**
+         * Inicialitza l'aplicació.
+         */
+        function initKanban() {
+            loadBoard(); // 1. Carrega les dades existents
+            renderBoard(); // 2. Renderitza el tauler
+	}	
+
+        // Assegura't que el DOM estigui carregat abans d'inicialitzar
+        document.addEventListener('DOMContentLoaded', initKanban);
+    </script>
+
+</body>
+</html>
