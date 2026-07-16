@@ -138,8 +138,9 @@
 </div>
 
 <!-- ══ HEADER ═══════════════════════════════════════════════════════════ -->
-<header class="text-white shadow-lg z-20 flex-shrink-0">
-    <div class="px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
+<header class="text-white shadow-lg z-20 flex-shrink-0 relative">
+    <div class="px-4 sm:px-6 h-14 flex items-center justify-between gap-3 relative">
+        
         <div class="flex items-center gap-3">
             <button class="md:hidden text-white/80 hover:text-white" onclick="toggleDrawer()">
                 <i class="fa-solid fa-bars text-xl"></i>
@@ -147,6 +148,20 @@
             <i class="fa-solid fa-layer-group text-xl hidden sm:block"></i>
             <h1 class="text-lg font-bold tracking-wide">Recursos SRA</h1>
         </div>
+
+        <div class="hidden lg:flex flex-col items-center justify-center bg-white rounded-full px-5 py-1 text-center shadow-md absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 min-w-max ring-2 ring-white/20">
+            <span class="text-xs font-bold underline" style="color: #4b1c7a;"><a href="https://www.instagram.com/srigodocente/">Santiago Rigo Aguiló</a></span>
+            <div class="flex items-center gap-1.5 text-[11px] mt-0.5">
+                <span class="font-bold underline" style="color: #4b1c7a;"><a href="https://creativecommons.org/licenses/by-nc-nd/4.0/">CC BY-NC-ND 4.0</a></span>
+                <div class="flex items-center gap-0.5 text-sm text-black">
+                    <i class="fa-brands fa-creative-commons"></i>
+                    <i class="fa-brands fa-creative-commons-by"></i>
+                    <i class="fa-brands fa-creative-commons-nc"></i>
+                    <i class="fa-brands fa-creative-commons-nd"></i>
+                </div>
+            </div>
+        </div>
+
         <div class="flex items-center gap-2 sm:gap-3">
             <div id="sync-status" class="flex items-center gap-1.5 text-xs">
                 <div id="sync-dot" class="w-2 h-2 rounded-full bg-green-400"></div>
@@ -178,6 +193,7 @@
                 </div>
             </div>
         </div>
+        
     </div>
 </header>
 
@@ -228,6 +244,9 @@
             <div class="flex gap-2 flex-shrink-0 flex-wrap">
                 <button onclick="openPresentationMode()" title="Mode presentació" class="text-sm px-3 py-1.5 rounded-lg border transition flex items-center gap-1.5 text-indigo-600 border-indigo-200 hover:bg-indigo-50" style="border-color:#c7d2fe">
                     <i class="fa-solid fa-display"></i><span class="hidden sm:inline">Presentar</span>
+                </button>
+                <button onclick="shareCategory()" title="Compartir" class="text-sm px-3 py-1.5 rounded-lg border transition flex items-center gap-1.5" style="color:var(--text-muted);border-color:var(--border)" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background=''">
+                    <i class="fa-solid fa-share-nodes"></i><span class="hidden sm:inline">Compartir</span>
                 </button>
                 <button onclick="deleteCurrentCategory()" class="text-sm px-3 py-1.5 rounded-lg border transition flex items-center gap-1.5 text-red-500 border-red-200 hover:bg-red-50">
                     <i class="fa-regular fa-trash-can"></i><span class="hidden sm:inline">Eliminar</span>
