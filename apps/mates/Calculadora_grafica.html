@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+* { box-sizing: border-box; }
+body { font-family: 'Inter', sans-serif; overflow: hidden; margin: 0; padding: 0; background-color: #f4f5f7; }
+
+/* Scrollbar estilitzat */
+.sidebar-scroll::-webkit-scrollbar { width: 6px; }
+.sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+.sidebar-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* Taula flotant */
+#table-panel { position: absolute; top: 60px; right: 80px; width: 300px; background: white; border: 1px solid #f1f5f9; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,.08); z-index: 100; display: none; flex-direction: column; max-height: 420px; user-select: none; overflow: hidden; }
+#table-panel.visible { display: flex; }
+#table-header { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; display: flex; align-items: center; justify-content: space-between; cursor: move; background: #ffffff; }
+#table-body { overflow-y: auto; flex: 1; padding: 0; }
+#table-body table { width: 100%; border-collapse: collapse; font-size: 13px; }
+#table-body th { background: #f8fafc; padding: 8px 12px; text-align: right; font-weight: 600; color: #475569; position: sticky; top: 0; z-index: 1; }
+#table-body th:first-child { text-align: center; }
+#table-body th:last-child { width: 28px; }
+#table-body td { padding: 4px 8px; text-align: right; border-bottom: 1px solid #f8fafc; color: #64748b; }
+#table-body td:first-child { text-align: center; background: #fafbfc; }
+#table-body td:last-child { text-align: center; padding: 2px 4px; }
+#table-body tr:hover td { background: #f1f5f9; }
+.tx-input { width: 100%; border: none; background: transparent; outline: none; font-family: monospace; font-size: 13px; font-weight: 600; color: #334155; text-align: center; padding: 4px 2px; border-radius: 4px; }
+.tx-input:focus { background: #eff6ff; color: #1d4ed8; }
+.ty-val { font-weight: 500; font-size: 13px; }
+.td-del { background: none; border: none; cursor: pointer; color: #cbd5e1; padding: 2px 4px; border-radius: 4px; font-size: 15px; line-height: 1; transition: color .15s; }
+.td-del:hover { color: #ef4444; background: #fef2f2; }
+#table-add-row { display: flex; align-items: center; justify-content: center; padding: 8px 12px; border-top: 1px solid #f1f5f9; background: #fafbfc; cursor: pointer; color: #6366f1; font-size: 13px; font-weight: 600; gap: 6px; transition: background .15s; flex-shrink: 0; }
+#table-add-row:hover { background: #eff1ff; }
+
+/* Tooltip */
+.pt-tooltip { position: absolute; background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 6px 10px; font-size: 13px; font-weight: 500; color: #334155; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,.08); white-space: nowrap; display: none; z-index: 50; }
+
+/* Checkbox personalitzat */
+input[type="checkbox"] { accent-color: #4338ca; }
+
+/* Select de funció */
+#table-func-select { font-size: 13px; border: 1px solid #e2e8f0; border-radius: 6px; padding: 4px 8px; background: white; color: #334155; cursor: pointer; outline: none; }
+#table-func-select:focus { border-color: #4338ca; }
+
+/* =============================================
+   CSS DE PRODUCCIÓ — Substitueix Tailwind CSS
+   ============================================= */
+
+/* Layout principal */
+.app-body { display:flex; height:100vh; width:100vw; margin:0; padding:0; color:#1f2937; }
+
+/* Sidebar */
+.sidebar { width:420px; max-width:100%; display:flex; flex-direction:column; z-index:10; box-shadow:4px 0 20px rgba(0,0,0,0.04); background:#f8fafc; border-right:1px solid #e5e7eb; }
+
+/* Capçalera vermella */
+.sidebar-header { background:red; color:white; padding:2rem 1.5rem 3rem; border-bottom-right-radius:2.5rem; box-shadow:0 1px 2px rgba(0,0,0,0.05); position:relative; z-index:20; }
+.sidebar-header-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:0.5rem; }
+.sidebar-title-group { display:flex; align-items:center; gap:0.75rem; }
+.sidebar-title { font-weight:700; font-size:1.5rem; letter-spacing:0.025em; }
+.count-badge { background:white; color:#4338ca; padding:0.25rem 0.75rem; border-radius:9999px; font-size:0.875rem; font-weight:700; box-shadow:0 1px 2px rgba(0,0,0,0.05); }
+.sidebar-subtitle { color:#c7d2fe; font-size:0.875rem; opacity:0.9; margin-top:0.25rem; }
+
+/* Caixa afegir expressió */
+.add-expr-box { padding:1.25rem 1.5rem; background:white; box-shadow:0 1px 2px rgba(0,0,0,0.05); z-index:20; margin-top:-1.5rem; margin-left:1.25rem; margin-right:1.25rem; border-radius:0.75rem; border:1px solid #f3f4f6; margin-bottom:0.5rem; }
+.add-expr-row { display:flex; align-items:flex-end; gap:0.75rem; }
+.add-expr-field { flex:1; }
+.add-expr-label { display:block; font-size:0.75rem; font-weight:600; color:#6b7280; margin-bottom:0.5rem; }
+.add-expr-input { width:100%; outline:none; padding:0.25rem 0; color:#374151; font-size:1rem; font-weight:500; border:none; border-bottom:1px solid #f3f4f6; transition:border-color 0.15s; background:transparent; }
+.add-expr-input::placeholder { color:#d1d5db; }
+.add-expr-input:focus { border-bottom-color:#4338ca; }
+.add-expr-btn { display:flex; align-items:center; gap:0.375rem; color:#4b5563; font-weight:500; font-size:0.875rem; padding-bottom:0.25rem; background:none; border:none; cursor:pointer; transition:color 0.15s; }
+.add-expr-btn:hover { color:#4338ca; }
+
+/* Llista d'expressions */
+.expr-list-wrap { flex:1; overflow-y:auto; padding:1rem 1.25rem 5rem; }
+.expr-list-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem; padding-left:0.25rem; }
+.expr-list-title { font-weight:700; color:#1f2937; font-size:1.125rem; }
+.expr-list { display:flex; flex-direction:column; gap:0.75rem; }
+
+/* Items d'expressió (generats per JS) */
+.expr-item { position:relative; display:flex; align-items:center; background:white; border:1px solid #f3f4f6; border-radius:0.75rem; box-shadow:0 2px 8px rgba(0,0,0,0.03); padding:0.75rem 0.75rem 0.75rem 1rem; transition:box-shadow 0.15s; }
+.expr-item:hover { box-shadow:0 4px 12px rgba(0,0,0,0.06); }
+.expr-check-wrap { margin-right:0.75rem; display:flex; align-items:center; justify-content:center; }
+.expr-checkbox { width:1rem; height:1rem; border-radius:0.25rem; cursor:pointer; }
+.expr-content { flex:1; display:flex; align-items:center; min-width:0; padding-right:0.5rem; }
+.expr-input { width:100%; background:transparent; border:none; outline:none; color:#1f2937; font-weight:600; font-size:15px; }
+.expr-input::placeholder { color:#d1d5db; }
+.expr-error { color:#ef4444; font-weight:700; margin-left:0.5rem; font-size:1.125rem; }
+.expr-delete-btn { color:#9ca3af; padding:0.5rem; border-radius:0.5rem; background:none; border:none; cursor:pointer; transition:color 0.15s, background 0.15s; flex-shrink:0; display:flex; }
+.expr-delete-btn:hover { color:#ef4444; background:#fef2f2; }
+
+/* Canvas */
+.canvas-container { flex:1; position:relative; background:white; cursor:crosshair; overflow:hidden; display:flex; flex-direction:column; }
+.graph-canvas-el { position:absolute; top:0; left:0; width:100%; height:100%; }
+
+/* Botons eines */
+.tool-panel { position:absolute; top:1.25rem; right:1.25rem; display:flex; flex-direction:column; gap:0.25rem; box-shadow:0 4px 15px rgba(0,0,0,0.06); border-radius:0.75rem; background:rgba(255,255,255,0.9); backdrop-filter:blur(8px); border:1px solid #f3f4f6; overflow:hidden; padding:0.375rem; z-index:40; }
+.tool-btn { padding:0.625rem; color:#6b7280; background:none; border:none; cursor:pointer; border-radius:0.5rem; transition:background 0.15s, color 0.15s; display:flex; align-items:center; justify-content:center; }
+.tool-btn:hover { background:#eff1f5; color:#4338ca; }
+.tool-btn--active { color:#4f46e5; background:#eef2ff; }
+.tool-btn--active:hover { background:#e0e7ff; }
+.tool-btn--inactive { color:#6b7280; background:none; }
+.tool-divider { height:1px; background:rgba(229,231,235,0.6); margin:0.25rem 0.5rem; }
+
+/* Coordenades del ratolí */
+.mouse-coords { position:absolute; bottom:1.25rem; right:1.25rem; background:rgba(255,255,255,0.9); backdrop-filter:blur(8px); border:1px solid #e5e7eb; padding:0.375rem 0.75rem; border-radius:0.5rem; font-size:0.875rem; font-weight:500; color:#6b7280; box-shadow:0 1px 2px rgba(0,0,0,0.05); pointer-events:none; }
+
+/* Utilitat hidden (usada per JS) */
+.hidden { display:none !important; }
+
+/* Taula — missatge buit */
+.table-empty { padding:1rem; text-align:center; font-size:0.875rem; color:#9ca3af; }
+</style>
+</head>
+<body class="app-body">
+
+<!-- Panell Lateral (Disseny tipus Gestor de Tasques) -->
+<div class="sidebar">
+  
+  <!-- Capçalera vermella -->
+  <div class="sidebar-header">
+    <div class="sidebar-header-top">
+      <div class="sidebar-title-group">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <h1 class="sidebar-title">Calculadora Gràfica</h1>
+      </div>
+      <div class="count-badge" id="count-badge">
+        0 Funcions
+      </div>
+    </div>
+      <div class="count-badge" id="count-badge">
+       <center><p class><a href="https://www.instagram.com/srigodocente/">Santiago Rigo Aguiló</a></p>
+<p class><a href="https://creativecommons.org/licenses/by-nc-nd/4.0/">CC BY-NC-ND 4.0</a><img src="https://mirrors.creativecommons.org/presskit/icons/cc.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"><img src="https://mirrors.creativecommons.org/presskit/icons/by.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"><img src="https://mirrors.creativecommons.org/presskit/icons/nc.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"><img src="https://mirrors.creativecommons.org/presskit/icons/nd.svg" alt="" style="max-width: 1em;max-height:1em;margin-left: .2em;"></p></center>
+      </div>
+  </div>
+
+  <!-- Zona d'afegir funció (Tipus "Què has de fer avui?") -->
+  <div class="add-expr-box">
+    <div class="add-expr-row">
+      <div class="add-expr-field">
+        <label class="add-expr-label">Expressió matemàtica</label>
+        <input type="text" id="new-expr-input" class="add-expr-input" placeholder="Ex: x^2 + 3" oninput="handleNewInput(this)" onkeydown="if(event.key==='Enter') addNewExpressionFromHeader()">
+      </div>
+      <button onclick="addNewExpressionFromHeader()" class="add-expr-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Afegir
+      </button>
+    </div>
+  </div>
+
+  <!-- Llista d'expressions -->
+  <div class="expr-list-wrap sidebar-scroll">
+    <div class="expr-list-header">
+      <h2 class="expr-list-title">Les teves gràfiques</h2>
+    </div>
+    <div id="expression-list" class="expr-list"></div>
+  </div>
+</div>
+
+<!-- Canvas -->
+<div class="canvas-container" id="canvas-container">
+  <canvas id="graph-canvas" class="graph-canvas-el"></canvas>
+
+  <!-- Tooltip punt clau -->
+  <div id="pt-tooltip" class="pt-tooltip"></div>
+
+  <!-- Botons flotants eines -->
+  <div class="tool-panel">
+    <button onclick="zoomBtn(0.8)" class="tool-btn" title="Apropar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+    </button>
+    <button onclick="zoomBtn(1.2)" class="tool-btn" title="Allunyar">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+    </button>
+    <div class="tool-divider"></div>
+    <button onclick="toggleTable()" id="table-btn" class="tool-btn" title="Taula de valors">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+    </button>
+    <button onclick="togglePoints()" id="pts-btn" class="tool-btn tool-btn--active" title="Mostrar/ocultar punts clau">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="5"/><line x1="12" y1="19" x2="12" y2="22"/><line x1="2" y1="12" x2="5" y2="12"/><line x1="19" y1="12" x2="22" y2="12"/></svg>
+    </button>
+    <div class="tool-divider"></div>
+    <button onclick="resetView()" class="tool-btn" title="Centrar gràfic">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+    </button>
+  </div>
+
+  <!-- Coordenades ratolí -->
+  <div id="mouse-coords" class="mouse-coords hidden" id="mouse-coords"></div>
+</div>
+
+<!-- Panell taula flotant -->
+<div id="table-panel">
+  <div id="table-header">
+    <div class="table-header-left">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></svg>
+      <span style="font-size:14px;font-weight:600;color:#1e293b">Taula de valors</span>
+    </div>
+    <div class="sidebar-title-group">
+      <select id="table-func-select" onchange="renderTable()"></select>
+      <button onclick="toggleTable()" class="table-close-btn">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+  </div>
+  <div id="table-body"></div>
+  <div id="table-add-row" onclick="tableAddRow()">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    Afegir fila
+  </div>
+</div>
+
+<script>
+// --- Configuració visual ---
+const COLORS = ['#ef4444', '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#14b8a6'];
+let colorIndex = 0;
+
+// --- Gestió d'expressions amb superíndexs ---
+const supMap = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','-':'⁻','x':'ˣ','y':'ʸ','n':'ⁿ'};
+const unSupMap = Object.fromEntries(Object.entries(supMap).map(([k,v])=>[v,k]));
+
+function toSuperscript(str) {
+  // Reemplaça ^ seguit de números/lletres pel símbol superíndex adequat de manera automàtica
+  return str.replace(/\^(-?[0-9xyn]+)/g, (match, p1) => {
+    return p1.split('').map(c => supMap[c] || c).join('');
+  });
+}
+
+function cleanMathInput(str) {
+  // Converteix els superíndexs altre cop a ^x perquè math.js ho entengui
+  const supRegex = /([⁰¹²³⁴⁵⁶⁷⁸⁹⁻ˣʸⁿ]+)/g;
+  let cleaned = str.replace(supRegex, (match) => {
+    return '^' + match.split('').map(c => unSupMap[c] || c).join('');
+  });
+  return cleaned.replace(/\^\^/g, '^');
+}
+
+// --- Lògica Principal ---
+const canvas = document.getElementById('graph-canvas');
+const ctx = canvas.getContext('2d');
+const container = document.getElementById('canvas-container');
+const listContainer = document.getElementById('expression-list');
+const coordsDisplay = document.getElementById('mouse-coords');
+const tooltip = document.getElementById('pt-tooltip');
+
+let expressions = [];
+let nextId = 1;
+let showPoints = true;
+let view = { xMin:-10, xMax:10, yMin:-10, yMax:10 };
+let isDragging = false;
+let lastMouse = {x:0,y:0};
+let keyPoints = []; 
+
+// --- Taula flotant (Arrossegar) ---
+(function(){
+  const panel = document.getElementById('table-panel');
+  const header = document.getElementById('table-header');
+  let drag=false, ox=0, oy=0;
+  header.addEventListener('mousedown', e=>{
+    drag=true;
+    ox = e.clientX - panel.offsetLeft;
+    oy = e.clientY - panel.offsetTop;
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', e=>{ if(drag){ panel.style.left=(e.clientX-ox)+'px'; panel.style.top=(e.clientY-oy)+'px'; panel.style.right='auto'; }});
+  window.addEventListener('mouseup', ()=>{ drag=false; });
+})();
+
+function init() {
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+  addExpression('x^2');
+  setupCanvasEvents();
+  requestAnimationFrame(draw);
+}
+
+function resizeCanvas() {
+  const rect = container.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.scale(dpr, dpr);
+  canvas.style.width = rect.width+'px';
+  canvas.style.height = rect.height+'px';
+  const aspect = rect.height / rect.width;
+  const xRange = view.xMax - view.xMin;
+  const yMid = (view.yMax + view.yMin) / 2;
+  const newYRange = xRange * aspect;
+  view.yMin = yMid - newYRange/2;
+  view.yMax = yMid + newYRange/2;
+  draw();
+}
+
+function handleNewInput(inputElem) {
+  const formatted = toSuperscript(inputElem.value);
+  if (formatted !== inputElem.value) {
+    const cursor = inputElem.selectionStart;
+    inputElem.value = formatted;
+    try { inputElem.setSelectionRange(cursor - 1, cursor - 1); } catch(e){}
+  }
+}
+
+function addNewExpressionFromHeader() {
+  const input = document.getElementById('new-expr-input');
+  const val = input.value.trim();
+  if(val) {
+    addExpression(val);
+    input.value = '';
+  }
+}
+
+function addExpression(initialText='') {
+  const displayTxt = toSuperscript(initialText);
+  const exp = { id: nextId++, text: displayTxt, color: COLORS[colorIndex % COLORS.length], compiled: null, valid: true, hidden: false };
+  colorIndex++;
+  expressions.push(exp);
+  if(initialText !== '') parseExpression(exp);
+  updateBadge();
+  renderList();
+  updateTableSelect();
+  renderTable();
+}
+
+function removeExpression(id) {
+  expressions = expressions.filter(e => e.id !== id);
+  updateBadge();
+  renderList();
+  updateTableSelect();
+  renderTable();
+  draw();
+}
+
+function toggleHidden(id) {
+  const exp = expressions.find(e => e.id === id);
+  if(exp){ exp.hidden = !exp.hidden; renderList(); draw(); }
+}
+
+function parseExpression(exp) {
+  let mathText = exp.text.trim();
+  if(!mathText){ exp.valid=true; exp.compiled=null; return; }
+  mathText = mathText.replace(/^(y\s*=\s*|f\(x\)\s*=\s*)/i,'');
+  mathText = cleanMathInput(mathText); // Transforma superíndexs a exponents reals
+  try {
+    exp.compiled = math.compile(mathText);
+    exp.compiled.evaluate({x:1});
+    exp.valid = true;
+  } catch(e) { exp.valid=false; exp.compiled=null; }
+}
+
+function handleInputChange(id, value, inputElement) {
+  const exp = expressions.find(e => e.id === id);
+  if(exp){
+    const formatted = toSuperscript(value);
+    if (formatted !== value) {
+      const cursor = inputElement.selectionStart;
+      inputElement.value = formatted;
+      try { inputElement.setSelectionRange(cursor - 1, cursor - 1); } catch(e){}
+      exp.text = formatted;
+    } else {
+      exp.text = value;
+    }
+    parseExpression(exp);
+    draw();
+    updateTableSelect();
+    renderTable();
+    const errorIcon = document.getElementById('error-'+id);
+    if(errorIcon) errorIcon.style.display = (!exp.valid && exp.text.trim()!=='') ? 'block' : 'none';
+  }
+}
+
+function updateBadge() {
+  const badge = document.getElementById('count-badge');
+  if(badge) {
+    badge.innerText = expressions.length + (expressions.length === 1 ? ' Funció' : ' Funcions');
+  }
+}
+
+function renderList() {
+  listContainer.innerHTML = '';
+  expressions.forEach((exp) => {
+    const item = document.createElement('div');
+    // Estils similars a l'imatge adjunta
+    item.className = 'expr-item';
+    item.style.borderLeft = `6px solid ${exp.color}`;
+    if (exp.hidden) item.style.opacity = '0.6';
+
+    const checkWrap = document.createElement('div');
+    checkWrap.className = 'expr-check-wrap';
+    checkWrap.innerHTML = `<input type="checkbox" ${!exp.hidden?'checked':''} class="expr-checkbox" style="accent-color: ${exp.color}">`;
+    checkWrap.querySelector('input').onchange = () => toggleHidden(exp.id);
+
+    const content = document.createElement('div');
+    content.className = 'expr-content';
+    
+    const input = document.createElement('input');
+    input.id = 'input-'+exp.id;
+    input.type = 'text';
+    input.value = exp.text;
+    input.className = 'expr-input';
+    input.placeholder = 'f(x) = ...';
+    input.oninput = e => handleInputChange(exp.id, e.target.value, e.target);
+
+    const errorIcon = document.createElement('span');
+    errorIcon.id = 'error-'+exp.id;
+    errorIcon.title = 'Expressió invàlida';
+    errorIcon.style.display = (!exp.valid && exp.text.trim()!=='') ? 'block' : 'none';
+    errorIcon.className = 'expr-error';
+    errorIcon.innerHTML = '!';
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.className = 'expr-delete-btn';
+    deleteBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>`;
+    deleteBtn.onclick = () => removeExpression(exp.id);
+
+    content.appendChild(input); 
+    content.appendChild(errorIcon); 
+    
+    item.appendChild(checkWrap);
+    item.appendChild(content); 
+    item.appendChild(deleteBtn);
+    listContainer.appendChild(item);
+  });
+}
+
+// --- Coordenades ---
+function mapX(x){ const r=container.getBoundingClientRect(); return ((x-view.xMin)/(view.xMax-view.xMin))*r.width; }
+function mapY(y){ const r=container.getBoundingClientRect(); return r.height-((y-view.yMin)/(view.yMax-view.yMin))*r.height; }
+function unmapX(px){ const r=container.getBoundingClientRect(); return view.xMin+(px/r.width)*(view.xMax-view.xMin); }
+function unmapY(py){ const r=container.getBoundingClientRect(); return view.yMin+((r.height-py)/r.height)*(view.yMax-view.yMin); }
+
+// --- Draw ---
+function draw() {
+  const rect = container.getBoundingClientRect();
+  const w = rect.width, h = rect.height;
+  ctx.clearRect(0,0,w,h);
+  drawGridAndAxes(w,h);
+  drawFunctions(w,h);
+  if(showPoints) computeAndDrawKeyPoints(w,h);
+}
+
+function drawGridAndAxes(w,h) {
+  const xRange = view.xMax - view.xMin;
+  
+  // Interval fix d'1 unitat (demanat per l'usuari)
+  let step = 1;
+  
+  // Protecció anti-saturació per si es fa molt de zoom in o out
+  if (xRange > 60) step = 5;
+  if (xRange > 150) step = 10;
+  if (xRange > 500) step = 50;
+  if (xRange < 4) step = 0.5;
+  if (xRange < 1) step = 0.1;
+  
+  ctx.font = '500 12px Inter,sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  
+  let startX = Math.floor(view.xMin/step)*step;
+  for(let x=startX; x<=view.xMax; x+=step){
+    if(Math.abs(x)<1e-10) x=0;
+    let px=mapX(x);
+    ctx.beginPath(); ctx.strokeStyle = x===0?'#334155':'#e2e8f0'; ctx.lineWidth = x===0?1.5:1;
+    ctx.moveTo(px,0); ctx.lineTo(px,h); ctx.stroke();
+    if(x!==0){ let py=mapY(0); if(py<0)py=5; else if(py>h-20)py=h-20; else py+=6; ctx.fillStyle='#94a3b8'; ctx.fillText(Number.isInteger(x)?x:x.toFixed(1).replace(/\.?0+$/,''), px, py); }
+  }
+  
+  ctx.textAlign='right'; ctx.textBaseline='middle';
+  let startY=Math.floor(view.yMin/step)*step;
+  for(let y=startY; y<=view.yMax; y+=step){
+    if(Math.abs(y)<1e-10) y=0;
+    let py=mapY(y);
+    ctx.beginPath(); ctx.strokeStyle=y===0?'#334155':'#e2e8f0'; ctx.lineWidth=y===0?1.5:1;
+    ctx.moveTo(0,py); ctx.lineTo(w,py); ctx.stroke();
+    if(y!==0){ let px=mapX(0); if(px<32)px=32; else if(px>w)px=w-6; else px-=6; ctx.fillStyle='#94a3b8'; ctx.fillText(Number.isInteger(y)?y:y.toFixed(1).replace(/\.?0+$/,''), px, py); }
+  }
+  
+  let ox=mapX(0)-6, oy=mapY(0)+6;
+  if(ox>0&&ox<w&&oy>0&&oy<h){ ctx.textAlign='right'; ctx.textBaseline='top'; ctx.fillStyle='#94a3b8'; ctx.fillText('0',ox,oy); }
+}
+
+function drawFunctions(w,h) {
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0,0,w,h); ctx.clip();
+  expressions.forEach(exp => {
+    if(!exp.valid||exp.hidden||!exp.compiled) return;
+    ctx.beginPath(); ctx.strokeStyle=exp.color; ctx.lineWidth=2.5; ctx.lineJoin='round';
+    let firstPoint=true, lastY=0;
+    for(let px=0; px<=w; px+=1){
+      let x=unmapX(px);
+      try {
+        let y=exp.compiled.evaluate({x:x,e:Math.E,pi:Math.PI});
+        if(isNaN(y)||!isFinite(y)||typeof y==='complex'){ firstPoint=true; continue; }
+        let py=mapY(y);
+        if(!firstPoint&&Math.abs(py-lastY)>h*1.5){ firstPoint=true; }
+        if(firstPoint){ ctx.moveTo(px,py); firstPoint=false; } else { ctx.lineTo(px,py); }
+        lastY=py;
+      } catch(e){ firstPoint=true; }
+    }
+    ctx.stroke();
+  });
+  ctx.restore();
+}
+
+// --- PUNTOS CLAVE I INTERSECCIONS ---
+function evalSafe(compiled, x) {
+  try {
+    const y = compiled.evaluate({x,e:Math.E,pi:Math.PI});
+    if(typeof y==='number'&&isFinite(y)&&!isNaN(y)) return y;
+  } catch(e){}
+  return null;
+}
+
+// Funció genèrica per trobar arrels d'una funció qualsevol f(x)
+function findRootsFunc(fn) {
+  const roots=[];
+  const steps=1500;
+  const dx=(view.xMax-view.xMin)/steps;
+  let prevY=fn(view.xMin);
+  for(let i=1;i<=steps;i++){
+    const x=view.xMin+i*dx;
+    const y=fn(x);
+    if(y===null){prevY=null;continue;}
+    if(prevY!==null&&Math.sign(y)!==Math.sign(prevY)&&Math.abs(y-prevY)<20){
+      let a=x-dx, b=x;
+      for(let k=0;k<35;k++){
+        const m=(a+b)/2;
+        const ym=fn(m);
+        if(ym===null) break;
+        if(Math.abs(ym)<1e-9){ a=m; break; }
+        if(Math.sign(ym)===Math.sign(fn(a))) a=m; else b=m;
+      }
+      const rx=(a+b)/2;
+      if(!roots.some(r=>Math.abs(r-rx)<0.05)) roots.push(rx);
+    }
+    prevY=y;
+  }
+  return roots;
+}
+
+function findExtrema(compiled) {
+  const pts=[];
+  const steps=1500;
+  const dx=(view.xMax-view.xMin)/steps;
+  let prevD=null;
+  for(let i=1;i<=steps;i++){
+    const x=view.xMin+i*dx;
+    const y0=evalSafe(compiled,x-dx/2);
+    const y1=evalSafe(compiled,x+dx/2);
+    if(y0===null||y1===null){prevD=null;continue;}
+    const d=(y1-y0)/dx;
+    if(prevD!==null&&Math.sign(d)!==Math.sign(prevD)&&Math.abs(d)<5){
+      let a=x-dx, b=x;
+      for(let k=0;k<35;k++){
+        const m=(a+b)/2;
+        const ym0=evalSafe(compiled,m-1e-6);
+        const ym1=evalSafe(compiled,m+1e-6);
+        if(ym0===null||ym1===null) break;
+        const dm=(ym1-ym0)/2e-6;
+        if(Math.abs(dm)<1e-7){ a=m; break; }
+        const da=evalSafe(compiled,a+1e-6)!==null?(evalSafe(compiled,a+1e-6)-evalSafe(compiled,a-1e-6))/2e-6:0;
+        if(Math.sign(dm)===Math.sign(da)) a=m; else b=m;
+      }
+      const ex=(a+b)/2;
+      const ey=evalSafe(compiled,ex);
+      if(ey!==null&&!pts.some(p=>Math.abs(p.x-ex)<0.05)){
+        pts.push({x:ex,y:ey,type:prevD<0?'min':'max'});
+      }
+    }
+    prevD=d;
+  }
+  return pts;
+}
+
+function computeAndDrawKeyPoints(w,h) {
+  keyPoints=[];
+  const activeExps = expressions.filter(e => e.valid && !e.hidden && e.compiled);
+
+  activeExps.forEach(exp=>{
+    const color=exp.color;
+
+    // Intersecció Y
+    const yInt=evalSafe(exp.compiled,0);
+    if(yInt!==null&&yInt>=view.yMin&&yInt<=view.yMax){
+      keyPoints.push({x:0,y:yInt,label:`Int. Y (0, ${fmt(yInt)})`,color,type:'yint'});
+    }
+
+    // Arrels (X)
+    const roots=findRootsFunc(x => evalSafe(exp.compiled, x));
+    roots.forEach(rx=>{
+      const ry=evalSafe(exp.compiled,rx);
+      if(ry!==null&&Math.abs(ry)<0.01&&rx>=view.xMin&&rx<=view.xMax){
+        const rxSnap=Math.abs(rx)<1e-6?0:rx; keyPoints.push({x:rxSnap,y:0,label:`Arrel (${fmt(rxSnap)}, 0)`,color,type:'root'});
+      }
+    });
+
+    // Extrems
+    const extrema=findExtrema(exp.compiled);
+    extrema.forEach(pt=>{
+      if(pt.x>=view.xMin&&pt.x<=view.xMax&&pt.y>=view.yMin&&pt.y<=view.yMax){
+        const px=Math.abs(pt.x)<1e-6?0:pt.x; const py=Math.abs(pt.y)<1e-6?0:pt.y; keyPoints.push({x:px,y:py,label:`${pt.type==='max'?'Màx':'Mín'} (${fmt(px)}, ${fmt(py)})`,color,type:pt.type});
+      }
+    });
+  });
+
+  // Interseccions entre gràfics
+  for(let i=0; i<activeExps.length; i++) {
+    for(let j=i+1; j<activeExps.length; j++) {
+      const exp1 = activeExps[i];
+      const exp2 = activeExps[j];
+      const diffFunc = (x) => {
+        const y1 = evalSafe(exp1.compiled, x);
+        const y2 = evalSafe(exp2.compiled, x);
+        if(y1 === null || y2 === null) return null;
+        return y1 - y2;
+      };
+      
+      const intersections = findRootsFunc(diffFunc);
+      intersections.forEach(rx => {
+        const ry = evalSafe(exp1.compiled, rx);
+        if (ry !== null && ry >= view.yMin && ry <= view.yMax && rx >= view.xMin && rx <= view.xMax) {
+          keyPoints.push({
+            x: rx, y: ry, 
+            label: `Intersecció (${fmt(rx)}, ${fmt(ry)})`, 
+            color: '#475569', 
+            type: 'intersect'
+          });
+        }
+      });
+    }
+  }
+
+  // Dibuixar punts
+  keyPoints.forEach(pt=>{
+    const px=mapX(pt.x), py=mapY(pt.y);
+    if(px<-10||px>w+10||py<-10||py>h+10) return;
+
+    ctx.beginPath();
+    ctx.arc(px,py,6.5,0,Math.PI*2);
+    ctx.fillStyle='white';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(px,py,4.5,0,Math.PI*2);
+    ctx.fillStyle=pt.color;
+    ctx.fill();
+    ctx.strokeStyle='white';
+    ctx.lineWidth=1.5;
+    ctx.stroke();
+
+    if(pt.type === 'intersect') {
+      ctx.beginPath();
+      ctx.arc(px,py,2,0,Math.PI*2);
+      ctx.fillStyle='white';
+      ctx.fill();
+    }
+  });
+}
+
+function fmt(n){ if(Math.abs(n)<1e-6) return '0'; return Math.abs(n)<0.001?n.toExponential(2):parseFloat(n.toFixed(3)).toString(); }
+
+// --- Taula de valors ---
+function toggleTable(){
+  const panel=document.getElementById('table-panel');
+  panel.classList.toggle('visible');
+  
+  const btn = document.getElementById('table-btn');
+  if(panel.classList.contains('visible')){ 
+    btn.classList.add('tool-btn--active');
+    btn.classList.remove('tool-btn--inactive');
+    updateTableSelect(); 
+    renderTable(); 
+  } else {
+    btn.classList.remove('tool-btn--active');
+    btn.classList.add('tool-btn--inactive');
+  }
+}
+
+function togglePoints(){
+  showPoints=!showPoints;
+  const btn=document.getElementById('pts-btn');
+  if(showPoints) {
+    btn.classList.add('tool-btn--active');
+    btn.classList.remove('tool-btn--inactive');
+  } else {
+    btn.classList.remove('tool-btn--active');
+    btn.classList.add('tool-btn--inactive');
+  }
+  draw();
+}
+
+function updateTableSelect(){
+  const sel=document.getElementById('table-func-select');
+  const prev=sel.value;
+  sel.innerHTML='';
+  const valid=expressions.filter(e=>e.valid&&e.compiled&&e.text.trim());
+  if(valid.length===0){
+    const opt=document.createElement('option');
+    opt.text='(cap)'; opt.value=''; sel.appendChild(opt);
+    return;
+  }
+  valid.forEach(exp=>{
+    const opt=document.createElement('option');
+    opt.value=exp.id;
+    let txt=exp.text.trim().replace(/^(y\s*=\s*|f\(x\)\s*=\s*)/i,'');
+    opt.text='f(x) = '+txt.substring(0,15)+(txt.length>15?'…':'');
+    if(exp.id==prev) opt.selected=true;
+    sel.appendChild(opt);
+  });
+}
+
+// Valors x editables de la taula (per funció seleccionada)
+let tableXValues = [-2, -1, 0, 1, 2];
+
+function renderTable(){
+  const panel=document.getElementById('table-panel');
+  if(!panel.classList.contains('visible')) return;
+  const sel=document.getElementById('table-func-select');
+  const id=parseInt(sel.value);
+  const exp=expressions.find(e=>e.id===id);
+  const body=document.getElementById('table-body');
+  
+  if(!exp||!exp.compiled){ 
+    body.innerHTML='<div class="table-empty">Sense funció vàlida</div>'; 
+    return; 
+  }
+  
+  let html=`<table><thead><tr><th>x</th><th>f(x)</th><th></th></tr></thead><tbody>`;
+  tableXValues.forEach((xv, idx)=>{
+    const xNum = parseFloat(xv);
+    const y = isNaN(xNum) ? null : evalSafe(exp.compiled, xNum);
+    const yStr = y===null ? '—' : fmt(y);
+    const isZero = xNum===0;
+    html += `<tr style="${isZero?'background:#f0fdf4;':''}">` +
+      `<td><input class="tx-input" type="text" value="${xv}" data-idx="${idx}" onchange="tableChangeX(${idx},this.value)" onkeydown="tableInputKey(event,${idx})"></td>` +
+      `<td class="ty-val" style="color:${exp.color}">${yStr}</td>` +
+      `<td><button class="td-del" onclick="tableDeleteRow(${idx})" title="Eliminar fila">×</button></td>` +
+      `</tr>`;
+  });
+  html+='</tbody></table>';
+  body.innerHTML=html;
+}
+
+function tableChangeX(idx, val){
+  // Accepta nombres amb punt o coma decimal
+  tableXValues[idx] = val.replace(',','.');
+  renderTable();
+}
+
+function tableInputKey(e, idx){
+  if(e.key==='ArrowUp'){
+    e.preventDefault();
+    const inputs = document.querySelectorAll('.tx-input');
+    if(inputs[idx-1]) { inputs[idx-1].focus(); inputs[idx-1].select(); }
+  } else if(e.key==='ArrowDown'){
+    e.preventDefault();
+    const inputs = document.querySelectorAll('.tx-input');
+    if(inputs[idx+1]) { inputs[idx+1].focus(); inputs[idx+1].select(); }
+  }
+}
+
+function tableDeleteRow(idx){
+  if(tableXValues.length <= 1) return; // Sempre manté almenys 1 fila
+  tableXValues.splice(idx, 1);
+  renderTable();
+}
+
+function tableAddRow(){
+  // Afegeix una fila al final buida
+  tableXValues.push('');
+  renderTable();
+  // Posa el focus a la nova fila
+  setTimeout(()=>{
+    const inputs = document.querySelectorAll('.tx-input');
+    if(inputs[inputs.length-1]) { inputs[inputs.length-1].focus(); }
+  }, 0);
+}
+
+// --- Interacció canvas ---
+function setupCanvasEvents(){
+  canvas.addEventListener('mousedown', e=>{ isDragging=true; lastMouse={x:e.clientX,y:e.clientY}; canvas.style.cursor='grabbing'; });
+  window.addEventListener('mouseup', ()=>{ isDragging=false; canvas.style.cursor='crosshair'; });
+  window.addEventListener('mousemove', e=>{
+    const rect=container.getBoundingClientRect();
+    if(e.clientX>rect.left&&e.clientX<rect.right&&e.clientY>rect.top&&e.clientY<rect.bottom){
+      let mx=unmapX(e.clientX-rect.left), my=unmapY(e.clientY-rect.top);
+      coordsDisplay.textContent=`x: ${mx.toFixed(2)} | y: ${my.toFixed(2)}`;
+      coordsDisplay.classList.remove('hidden');
+      
+      const px=e.clientX-rect.left, py=e.clientY-rect.top;
+      let hovering=false;
+      keyPoints.forEach(pt=>{
+        const kpx=mapX(pt.x), kpy=mapY(pt.y);
+        if(Math.hypot(px-kpx,py-kpy)<12){
+          tooltip.textContent=pt.label;
+          tooltip.style.left=(e.clientX-rect.left+16)+'px';
+          tooltip.style.top=(e.clientY-rect.top-32)+'px';
+          tooltip.style.display='block';
+          hovering=true;
+        }
+      });
+      if(!hovering) tooltip.style.display='none';
+    } else {
+      coordsDisplay.classList.add('hidden');
+      tooltip.style.display='none';
+    }
+    if(isDragging){
+      const dxP=e.clientX-lastMouse.x, dyP=e.clientY-lastMouse.y;
+      const r=container.getBoundingClientRect();
+      const dxM=(dxP/r.width)*(view.xMax-view.xMin);
+      const dyM=(dyP/r.height)*(view.yMax-view.yMin);
+      view.xMin-=dxM; view.xMax-=dxM;
+      view.yMin+=dyM; view.yMax+=dyM;
+      lastMouse={x:e.clientX,y:e.clientY};
+      requestAnimationFrame(draw);
+    }
+  });
+  canvas.addEventListener('wheel', e=>{
+    e.preventDefault();
+    const rect=container.getBoundingClientRect();
+    const mouseX=e.clientX-rect.left, mouseY=e.clientY-rect.top;
+    const mathX=unmapX(mouseX), mathY=unmapY(mouseY);
+    const zf=e.deltaY>0?1.1:0.9;
+    view.xMin=mathX-(mathX-view.xMin)*zf; view.xMax=mathX+(view.xMax-mathX)*zf;
+    view.yMin=mathY-(mathY-view.yMin)*zf; view.yMax=mathY+(view.yMax-mathY)*zf;
+    requestAnimationFrame(draw);
+  },{passive:false});
+}
+
+function zoomBtn(factor){
+  const cx=(view.xMax+view.xMin)/2, cy=(view.yMax+view.yMin)/2;
+  view.xMin=cx-(cx-view.xMin)*factor; view.xMax=cx+(view.xMax-cx)*factor;
+  view.yMin=cy-(cy-view.yMin)*factor; view.yMax=cy+(view.yMax-cy)*factor;
+  draw();
+}
+function resetView(){ view.xMin=-10; view.xMax=10; resizeCanvas(); }
+
+window.onload=init;
+</script>
+</body>
+</html>
