@@ -1,48 +1,63 @@
 <!DOCTYPE html>
-<html lang="ca">
+<html lang="ca" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Temporitzador d'aula - Gestió del temps</title>
-    <!-- Tailwind CSS per a disseny ràpid, adaptatiu i professional -->
+    
+    <!-- Tailwind CSS per a un disseny ràpid i flexible -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Icones Phosphor per a una interfície neta -->
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        indigo: {
+                            600: '#4f46e5',
+                            800: '#3730a3',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome 6 per a iconografia coherent incloent llicències -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <style>
-        /* CSS PERSONALITZAT: Estètica i accessibilitat */
-        
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Nunito:wght@400;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Inter:wght@300;400;500;600;700;800&display=swap');
 
         body {
-            font-family: 'Nunito', sans-serif;
-            background-color: #f3f4f6;
-            color: #1f2937;
+            font-family: 'Inter', sans-serif;
         }
 
-        /* Tipografia monoespaiada per als números del rellotge per evitar salts visuals */
+        /* Tipografia de nombres monoespaiats per evitar salts visuals */
         .font-mono-numbers {
             font-family: 'JetBrains Mono', monospace;
             font-variant-numeric: tabular-nums;
         }
 
-        /* Estat d'alarma visual (pelleig vermell) */
+        /* Alarma visual: pampallugues vermelles harmonitzades */
         @keyframes alarmPulse {
-            0% { background-color: #fee2e2; }
-            50% { background-color: #ef4444; }
-            100% { background-color: #fee2e2; }
+            0% { background-color: rgba(254, 226, 226, 1); }
+            50% { background-color: rgba(239, 68, 68, 0.4); }
+            100% { background-color: rgba(254, 226, 226, 1); }
+        }
+        @keyframes alarmPulseDark {
+            0% { background-color: rgba(31, 41, 55, 1); }
+            50% { background-color: rgba(153, 27, 27, 0.6); }
+            100% { background-color: rgba(31, 41, 55, 1); }
         }
 
         .alarm-active {
-            animation: alarmPulse 1s infinite;
+            animation: alarmPulse 1.2s infinite;
+        }
+        .dark .alarm-active {
+            animation: alarmPulseDark 1.2s infinite;
         }
 
-        /* Accessibilitat: Focus visible millorat */
-        *:focus-visible {
-            outline: 3px solid #3b82f6;
-            outline-offset: 2px;
-        }
-
-        /* Estils per als inputs de temps sense fletxes de navegador */
+        /* Amagar controls d'inputs numèrics de manera cross-browser */
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { 
             -webkit-appearance: none; 
@@ -53,120 +68,323 @@
         }
     </style>
 </head>
-<body class="min-h-screen flex flex-col items-center justify-center p-4 transition-colors duration-300" id="mainBody">
+<body class="min-h-screen flex flex-col bg-gray-50 dark:bg-gray-900 text-gray-800 dark:text-gray-100 transition-colors duration-300" id="mainBody">
 
-    <!-- CONTENIDOR PRINCIPAL -->
-    <main class="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+    <!-- CAPÇALERA (HEADER) SEGONS DIRECTRIUS -->
+    <header class="sticky top-0 z-20 h-14 bg-[#4f46e5] dark:bg-[#3730a3] text-white shadow-lg flex-shrink-0 relative select-none">
+        <div class="flex items-center justify-between gap-3 px-4 sm:px-6 h-14 relative w-full">
+            
+            <!-- Bloc Esquerre -->
+            <div class="flex items-center gap-3">
+                <!-- Hamburguesa per a mòbils -->
+                <button onclick="timerApp.toggleSidebar()" class="md:hidden text-white hover:text-white/80 focus:outline-none p-1" aria-label="Obrir menú">
+                    <i class="fa-solid fa-bars text-lg"></i>
+                </button>
+                <!-- Icona Corporativa -->
+                <i class="fa-solid fa-layer-group text-lg hidden sm:block"></i>
+                <!-- Títol de l'App -->
+                <span class="text-lg font-bold tracking-wide">Temporitzador</span>
+            </div>
+
+            <!-- BADGE CENTRAL (CRÈDITS I LLICÈNCIA) - PANTALLES MARS (lg:flex) -->
+            <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 min-w-max hidden lg:flex flex-col items-center justify-center bg-white rounded-full px-5 py-1 text-center shadow-md ring-2 ring-white/20 select-text">
+                <div class="leading-none">
+                    <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener" class="text-xs font-bold underline hover:opacity-85 transition-opacity" style="color: #4b1c7a;">
+                        Santiago Rigo Aguiló
+                    </a>
+                </div>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                    <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener" class="font-bold underline text-[10px] hover:opacity-85 transition-opacity" style="color: #4b1c7a;">
+                        CC BY-NC-ND 4.0
+                    </a>
+                    <span class="flex items-center gap-0.5 text-xs text-black">
+                        <i class="fa-brands fa-creative-commons"></i>
+                        <i class="fa-brands fa-creative-commons-by"></i>
+                        <i class="fa-brands fa-creative-commons-nc"></i>
+                        <i class="fa-brands fa-creative-commons-nd"></i>
+                    </span>
+                </div>
+            </div>
+
+            <!-- Bloc Dret: Botons encastats i Sincronitzador -->
+            <div class="flex items-center gap-3">
+                <!-- Botons Minimalistes Translúcids (Header Buttons) -->
+                <button onclick="timerApp.toggleDarkMode()" class="bg-white/15 text-white rounded-lg text-xs px-2.5 py-1.5 hover:bg-white/25 active:bg-white/20 font-medium transition-colors flex items-center gap-1.5" title="Canviar Mode Visual">
+                    <i class="fa-solid fa-circle-half-stroke"></i>
+                    <span class="hidden md:inline">Tema</span>
+                </button>
+                
+                <button onclick="timerApp.showAboutModal()" class="bg-white/15 text-white rounded-lg text-xs px-2.5 py-1.5 hover:bg-white/25 active:bg-white/20 font-medium transition-colors flex items-center gap-1.5" title="Informació">
+                    <i class="fa-solid fa-circle-info"></i>
+                    <span class="hidden md:inline">Info</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- DRAWER / MENU LATERAL PER A DISPOSITIUS MÒBILS -->
+    <div id="sidebarDrawer" class="fixed inset-0 z-30 pointer-events-none select-none">
+        <!-- Overlay fons fosc -->
+        <div id="drawerOverlay" onclick="timerApp.toggleSidebar()" class="absolute inset-0 bg-black/50 opacity-0 transition-opacity duration-300 ease-in-out"></div>
+        <!-- Contingut Drawer -->
+        <aside id="drawerContent" class="absolute top-0 left-0 bottom-0 w-72 bg-white dark:bg-gray-800 shadow-2xl flex flex-col justify-between p-6 transform -translate-x-full transition-transform duration-300 ease-in-out pointer-events-auto">
+            <div>
+                <div class="flex items-center justify-between pb-4 border-b border-gray-100 dark:border-gray-700">
+                    <div class="flex items-center gap-2 text-[#4f46e5] dark:text-[#818cf8]">
+                        <i class="fa-solid fa-layer-group text-xl"></i>
+                        <span class="font-bold text-md">Menú de l'App</span>
+                    </div>
+                    <button onclick="timerApp.toggleSidebar()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200">
+                        <i class="fa-solid fa-xmark text-lg"></i>
+                    </button>
+                </div>
+                
+                <!-- Opcions Ràpides d'Utilitat -->
+                <nav class="mt-6 space-y-3">
+                    <button onclick="timerApp.toggleSidebar(); timerApp.loadPreset(300);" class="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <i class="fa-solid fa-hourglass-start text-gray-400"></i>
+                        <span>Lectura ràpida (5 min)</span>
+                    </button>
+                    <button onclick="timerApp.toggleSidebar(); timerApp.loadPreset(900);" class="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <i class="fa-solid fa-hourglass-half text-gray-400"></i>
+                        <span>Examen curt (15 min)</span>
+                    </button>
+                    <button onclick="timerApp.toggleSidebar(); timerApp.toggleDarkMode();" class="w-full text-left flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                        <i class="fa-solid fa-circle-half-stroke text-gray-400"></i>
+                        <span>Canviar Mode Nit/Dia</span>
+                    </button>
+                </nav>
+            </div>
+
+            <!-- BADGE ADAPTATIU RESPONSIVE (Mòbils i tauletes) AL PEU DEL DRAWER -->
+            <div class="bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border border-gray-100 dark:border-gray-700 select-text">
+                <p class="text-[11px] text-gray-400 dark:text-gray-500 uppercase font-bold tracking-wider mb-2 text-center">Intel·lectual & Llicència</p>
+                <div class="text-center flex flex-col items-center">
+                    <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener" class="text-xs font-bold underline hover:opacity-85 transition-opacity block" style="color: #4b1c7a;">
+                        Santiago Rigo Aguiló
+                    </a>
+                    <div class="flex items-center gap-1.5 mt-1">
+                        <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener" class="font-bold underline text-[10px] hover:opacity-85 transition-opacity" style="color: #4b1c7a;">
+                            CC BY-NC-ND 4.0
+                        </a>
+                        <span class="flex items-center gap-0.5 text-xs text-black dark:text-white">
+                            <i class="fa-brands fa-creative-commons"></i>
+                            <i class="fa-brands fa-creative-commons-by"></i>
+                            <i class="fa-brands fa-creative-commons-nc"></i>
+                            <i class="fa-brands fa-creative-commons-nd"></i>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- MAIN CONTENT WRAPPER -->
+    <main class="flex-grow flex flex-col items-center justify-center p-4 md:p-8">
         
-        <!-- HEADER -->
-        <header class="bg-indigo-600 p-6 text-white text-center relative">
-            <h1 class="text-3xl font-bold flex items-center justify-center gap-3">
-                <i class="ph ph-timer text-4xl"></i>
-                Temporitzador d'aula
-            </h1>
-            <p class="text-indigo-100 text-sm mt-2">Eina de gestió del temps per a Primària i Secundària</p>
-        </header>
-
-        <!-- ZONA DE VISUALITZACIÓ DEL TEMPS -->
-        <section class="p-8 text-center bg-gray-50 border-b border-gray-100 relative">
-            <div id="timerDisplay" class="font-mono-numbers text-7xl md:text-9xl font-bold text-gray-800 tracking-tight leading-none select-none" role="timer" aria-live="polite">
-                00:00:00
-            </div>
+        <!-- CONTENIDOR DE LA TARGETA PRINCIPAL -->
+        <section class="w-full max-w-2xl bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden border border-gray-150 dark:border-gray-750 transition-all duration-300">
             
-            <!-- Barra de progrés visual -->
-            <div class="w-full h-4 bg-gray-200 rounded-full mt-6 overflow-hidden">
-                <div id="progressBar" class="h-full bg-indigo-500 transition-all duration-1000 ease-linear w-full"></div>
-            </div>
-
-            <!-- Missatge d'estat (accessible) -->
-            <div id="statusMessage" class="mt-4 text-lg font-semibold text-gray-500 h-8">
-                A punt per començar
-            </div>
-        </section>
-
-        <!-- ZONA DE CONTROLS PRINCIPALS -->
-        <section class="p-6 grid grid-cols-1 md:grid-cols-3 gap-4 bg-white">
-            <!-- Inputs Manuals -->
-            <div class="md:col-span-3 flex justify-center gap-2 items-end mb-4" id="inputContainer">
-                <div class="flex flex-col text-center">
-                    <label for="inputH" class="text-xs font-bold text-gray-500 uppercase mb-1">Hores</label>
-                    <input type="number" id="inputH" min="0" max="99" value="00" class="w-20 h-16 text-3xl text-center border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-0 font-mono-numbers bg-gray-50">
+            <!-- PANELL SUPERIOR: VISUALITZACIÓ DEL CONTROLS DE CRONÒMETRE -->
+            <div class="p-8 text-center bg-gray-50 dark:bg-gray-800/40 border-b border-gray-100 dark:border-gray-700/50 relative">
+                
+                <!-- El Rellotge Gran -->
+                <div id="timerDisplay" class="font-mono-numbers text-6xl sm:text-7xl md:text-8xl font-extrabold text-gray-800 dark:text-gray-100 tracking-tight leading-none select-none drop-shadow-sm" role="timer" aria-live="polite">
+                    00:00:00
                 </div>
-                <span class="text-3xl font-bold text-gray-400 pb-3">:</span>
-                <div class="flex flex-col text-center">
-                    <label for="inputM" class="text-xs font-bold text-gray-500 uppercase mb-1">Minuts</label>
-                    <input type="number" id="inputM" min="0" max="59" value="00" class="w-20 h-16 text-3xl text-center border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-0 font-mono-numbers bg-gray-50">
+                
+                <!-- Barra de progrés visual adaptativa -->
+                <div class="w-full h-3.5 bg-gray-250 dark:bg-gray-700 rounded-full mt-6 overflow-hidden">
+                    <div id="progressBar" class="h-full bg-indigo-600 transition-all duration-1000 ease-linear w-full"></div>
                 </div>
-                <span class="text-3xl font-bold text-gray-400 pb-3">:</span>
-                <div class="flex flex-col text-center">
-                    <label for="inputS" class="text-xs font-bold text-gray-500 uppercase mb-1">Segons</label>
-                    <input type="number" id="inputS" min="0" max="59" value="00" class="w-20 h-16 text-3xl text-center border-2 border-gray-300 rounded-lg focus:border-indigo-500 focus:ring-0 font-mono-numbers bg-gray-50">
+
+                <!-- Missatge d'estat (Accessible) -->
+                <div id="statusMessage" class="mt-4 text-base font-semibold text-gray-500 dark:text-gray-400 h-6 flex items-center justify-center gap-2">
+                    <span>A punt per començar</span>
                 </div>
             </div>
 
-            <!-- Botons d'Acció -->
-            <button id="btnStart" class="bg-green-600 hover:bg-green-700 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-lg border-b-4 border-green-800">
-                <i class="ph ph-play text-2xl"></i> INICIAR
-            </button>
-            
-            <button id="btnPause" class="bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-lg border-b-4 border-amber-700 hidden">
-                <i class="ph ph-pause text-2xl"></i> PAUSAR
-            </button>
+            <!-- ZONA DE CONFIGURACIÓ I BOTONS DE CONTROL -->
+            <div class="p-6 md:p-8 bg-white dark:bg-gray-800">
+                
+                <!-- Inputs Manuals per configurar -->
+                <div class="flex justify-center gap-3 items-end mb-6" id="inputContainer">
+                    <div class="flex flex-col text-center">
+                        <label for="inputH" class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5 tracking-wider">Hores</label>
+                        <input type="number" id="inputH" min="0" max="99" value="00" class="w-16 sm:w-20 h-14 sm:h-16 text-2xl sm:text-3xl text-center border-2 border-gray-250 dark:border-gray-700 rounded-xl focus:border-[#4f46e5] dark:focus:border-[#818cf8] focus:ring-0 font-mono-numbers bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200 transition-colors">
+                    </div>
+                    <span class="text-2xl sm:text-3xl font-bold text-gray-300 dark:text-gray-600 pb-3">:</span>
+                    <div class="flex flex-col text-center">
+                        <label for="inputM" class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5 tracking-wider">Minuts</label>
+                        <input type="number" id="inputM" min="0" max="59" value="00" class="w-16 sm:w-20 h-14 sm:h-16 text-2xl sm:text-3xl text-center border-2 border-gray-250 dark:border-gray-700 rounded-xl focus:border-[#4f46e5] dark:focus:border-[#818cf8] focus:ring-0 font-mono-numbers bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200 transition-colors">
+                    </div>
+                    <span class="text-2xl sm:text-3xl font-bold text-gray-300 dark:text-gray-600 pb-3">:</span>
+                    <div class="flex flex-col text-center">
+                        <label for="inputS" class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-1.5 tracking-wider">Segons</label>
+                        <input type="number" id="inputS" min="0" max="59" value="00" class="w-16 sm:w-20 h-14 sm:h-16 text-2xl sm:text-3xl text-center border-2 border-gray-250 dark:border-gray-700 rounded-xl focus:border-[#4f46e5] dark:focus:border-[#818cf8] focus:ring-0 font-mono-numbers bg-gray-50 dark:bg-gray-950 text-gray-800 dark:text-gray-200 transition-colors">
+                    </div>
+                </div>
 
-            <button id="btnStopAlarm" class="bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-lg border-b-4 border-red-800 hidden animate-pulse">
-                <i class="ph ph-bell-slash text-2xl"></i> ATURAR ALARMA
-            </button>
+                <!-- PANELL DE BOTONS PRINCIPALS - COHESIONATS AMB EL MANUAL D'ESTIL -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    
+                    <!-- Botó Iniciar / Reprendre (Botó Primari) -->
+                    <button id="btnStart" class="bg-[#4f46e5] dark:bg-indigo-600 hover:bg-[#4338ca] dark:hover:bg-indigo-700 text-white font-medium py-3.5 px-5 rounded-lg text-sm flex items-center justify-center gap-2 transition-all shadow-sm focus:ring-2 focus:ring-[#4f46e5]/50 outline-none w-full">
+                        <i class="fa-solid fa-play"></i> <span>INICIAR</span>
+                    </button>
+                    
+                    <!-- Botó Pausar (Botó Secundari o Neutre de color de sistema) -->
+                    <button id="btnPause" class="border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50 font-medium py-3.5 px-5 rounded-lg text-sm flex items-center justify-center gap-2 transition-all outline-none w-full hidden">
+                        <i class="fa-solid fa-pause"></i> <span>PAUSAR</span>
+                    </button>
 
-            <button id="btnReset" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 border-b-4 border-gray-400">
-                <i class="ph ph-arrow-counter-clockwise text-2xl"></i> REINICIAR
-            </button>
+                    <!-- Botó Aturar Alarma (Botó de Perill o Destructiu) -->
+                    <button id="btnStopAlarm" class="border border-red-200 dark:border-red-900/50 text-red-500 dark:text-red-400 bg-transparent hover:bg-red-50 dark:hover:bg-red-950/20 font-medium py-3.5 px-5 rounded-lg text-sm flex items-center justify-center gap-2 transition-all outline-none w-full hidden animate-pulse">
+                        <i class="fa-solid fa-bell-slash"></i> <span>ATURAR ALARMA</span>
+                    </button>
 
-             <button id="btnSavePreset" class="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold py-4 px-6 rounded-xl flex items-center justify-center gap-2 transition-transform active:scale-95 border-b-4 border-indigo-200">
-                <i class="ph ph-floppy-disk text-2xl"></i> DESAR
-            </button>
-        </section>
+                    <!-- Botó Reiniciar (Botó Secundari / Neutre) -->
+                    <button id="btnReset" class="border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 bg-transparent hover:bg-gray-50 dark:hover:bg-gray-700/50 font-medium py-3.5 px-5 rounded-lg text-sm flex items-center justify-center gap-2 transition-all outline-none w-full">
+                        <i class="fa-solid fa-rotate-left"></i> <span>REINICIAR</span>
+                    </button>
 
-        <!-- ZONA DE PREDEFINITS (PRESETS) -->
-        <section class="bg-gray-50 p-6 border-t border-gray-200">
-            <h2 class="text-lg font-bold text-gray-700 mb-4 flex items-center gap-2">
-                <i class="ph ph-bookmark"></i> Temps Predefinits
-            </h2>
-            
-            <!-- Llista de presets -->
-            <div id="presetsList" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <!-- S'omplirà amb JS -->
+                    <!-- Botó Desar (Botó Primari) -->
+                    <button id="btnSavePreset" class="bg-[#4f46e5] dark:bg-indigo-600 hover:bg-[#4338ca] dark:hover:bg-indigo-700 text-white font-medium py-3.5 px-5 rounded-lg text-sm flex items-center justify-center gap-2 transition-all shadow-sm focus:ring-2 focus:ring-[#4f46e5]/50 outline-none w-full">
+                        <i class="fa-solid fa-floppy-disk"></i> <span>DESAR</span>
+                    </button>
+                </div>
             </div>
-            
-            <p id="emptyPresetsMsg" class="text-gray-400 text-sm italic text-center py-4">No hi ha temps desats. Configura un temps i prem "Desar".</p>
+
+            <!-- SECCIÓ DE TEMPS PREDEFINITS (PRESETS) -->
+            <section class="bg-gray-50 dark:bg-gray-800/60 p-6 md:p-8 border-t border-gray-100 dark:border-gray-700/80">
+                <h2 class="text-base font-bold text-gray-700 dark:text-gray-300 mb-4 flex items-center gap-2.5">
+                    <i class="fa-solid fa-bookmark text-indigo-500"></i>
+                    Temps Predefinits d'Aula
+                </h2>
+                
+                <!-- Gid per als predefinits -->
+                <div id="presetsList" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- Es renderitza dinàmicament mitjançant JavaScript -->
+                </div>
+                
+                <!-- Text buit per defecte -->
+                <p id="emptyPresetsMsg" class="text-gray-400 dark:text-gray-500 text-sm italic text-center py-4 hidden">No hi ha temps desats. Selecciona un temps i prem "Desar".</p>
+            </section>
         </section>
+
+        <!-- BADGE ADAPTATIU RESPONSIVE - PANTALLES PETITES I MITJANES (lg:hidden) AL FINAL DE LA PÀGINA -->
+        <footer class="mt-8 text-center text-gray-400 dark:text-gray-500 text-xs flex flex-col items-center gap-4 select-text">
+            <div>
+                <p>Eina educativa adaptativa • Optimitzat per a pantalles i projectors d'aula</p>
+            </div>
+
+            <div class="lg:hidden flex flex-col items-center justify-center bg-white dark:bg-gray-800/80 rounded-2xl p-4 text-center shadow-sm border border-gray-150 dark:border-gray-750 max-w-sm mx-auto">
+                <span class="text-[10px] uppercase font-bold tracking-wider text-gray-400 dark:text-gray-500 mb-2">Propietat intel·lectual</span>
+                <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener" class="text-sm font-bold underline mb-1" style="color: #4b1c7a;">
+                    Santiago Rigo Aguiló
+                </a>
+                <div class="flex items-center gap-1.5 justify-center mt-1">
+                    <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener" class="text-xs font-bold underline" style="color: #4b1c7a;">
+                        CC BY-NC-ND 4.0
+                    </a>
+                    <span class="flex items-center gap-0.5 text-xs text-black dark:text-white">
+                        <i class="fa-brands fa-creative-commons"></i>
+                        <i class="fa-brands fa-creative-commons-by"></i>
+                        <i class="fa-brands fa-creative-commons-nc"></i>
+                        <i class="fa-brands fa-creative-commons-nd"></i>
+                    </span>
+                </div>
+            </div>
+        </footer>
     </main>
 
-    <!-- FOOTER -->
-    <footer class="mt-8 text-center text-gray-500 text-sm">
-        <p>Eina educativa accessible • Desenvolupada per a l'aula</p>
-    </footer>
+    <!-- COMPONENT DE NOTIFICACIÓ PERSONALITZADA (TOAST) -->
+    <div id="customToast" class="fixed bottom-4 right-4 z-50 transform translate-y-12 opacity-0 transition-all duration-300 pointer-events-none bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 max-w-sm border border-gray-800/10 dark:border-gray-200/10">
+        <span id="toastIcon" class="text-indigo-400 dark:text-indigo-600"><i class="fa-solid fa-circle-info"></i></span>
+        <span id="toastText" class="text-xs sm:text-sm font-medium">Missatge informatiu</span>
+    </div>
 
-    <!-- JAVASCRIPT: LÒGICA DE L'APLICACIÓ -->
+    <!-- COMPONENT DE DIÀLEG DE CONFIRMACIÓ REUSABLE (MODAL) -->
+    <div id="confirmModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 opacity-0 pointer-events-none transition-opacity duration-250 p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-sm w-full p-6 shadow-2xl transform scale-95 transition-transform duration-250 border border-gray-100 dark:border-gray-700">
+            <div class="flex items-center gap-3 text-indigo-500 mb-3">
+                <i class="fa-solid fa-circle-question text-2xl"></i>
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white">Confirmació d'acció</h3>
+            </div>
+            <p id="confirmMessage" class="text-gray-600 dark:text-gray-300 text-sm mb-6">Estàs segur que vols continuar amb aquesta acció?</p>
+            <div class="flex justify-end gap-2">
+                <!-- Botó cancel·lar (Botó Secundari) -->
+                <button id="confirmCancelBtn" class="px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-700 rounded-lg transition-colors bg-transparent">
+                    Cancel·lar
+                </button>
+                <!-- Botó d'acció primària o perill segons el tipus -->
+                <button id="confirmOkBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#4f46e5] hover:bg-[#4338ca] rounded-lg shadow-sm transition-colors">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL INFORMATIU (SOBRE L'APP / INFO) -->
+    <div id="aboutModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 opacity-0 pointer-events-none transition-opacity duration-250 p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-2xl max-w-md w-full p-6 shadow-2xl transform scale-95 transition-transform duration-250 border border-gray-150 dark:border-gray-700">
+            <div class="flex items-center justify-between pb-3 border-b border-gray-100 dark:border-gray-700 mb-4">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info text-[#4f46e5]"></i> Informació de l'App
+                </h3>
+                <button onclick="timerApp.hideAboutModal()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <div class="text-sm text-gray-600 dark:text-gray-300 space-y-3 leading-relaxed">
+                <p>Aquesta aplicació és un temporitzador modular adaptat perfectament per a l'ús educatiu en aules de Primària i Secundària.</p>
+                <p>Permet configurar i emmagatzemar intervals predefinits de gestió temporal, facilitant dinàmiques de lectura silenciosa, resolució d'exercicis ràpids, exàmens corts o tasques cooperatives.</p>
+                
+                <div class="border-t border-gray-100 dark:border-gray-700 pt-3 mt-4">
+                    <p class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Crèdits i autoria:</p>
+                    <div class="bg-gray-50 dark:bg-gray-900 p-3 rounded-xl border border-gray-100 dark:border-gray-750">
+                        <p class="font-semibold text-gray-800 dark:text-gray-200">Santiago Rigo Aguiló</p>
+                        <p class="text-xs text-[#4b1c7a] dark:text-indigo-400 mt-0.5 font-medium"><i class="fa-brands fa-instagram"></i> @srigodocente</p>
+                        <div class="flex items-center gap-1.5 mt-2 pt-2 border-t border-gray-200/50 dark:border-gray-800 text-xs">
+                            <span class="font-mono text-gray-500 dark:text-gray-400">Llicència: CC BY-NC-ND 4.0</span>
+                            <span class="flex items-center gap-0.5 text-black dark:text-white">
+                                <i class="fa-brands fa-creative-commons"></i>
+                                <i class="fa-brands fa-creative-commons-by"></i>
+                                <i class="fa-brands fa-creative-commons-nc"></i>
+                                <i class="fa-brands fa-creative-commons-nd"></i>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end mt-6">
+                <button onclick="timerApp.hideAboutModal()" class="bg-[#4f46e5] hover:bg-[#4338ca] text-white font-medium py-2 px-5 rounded-lg text-sm transition-all shadow-sm">
+                    Tancar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT: LÒGICA AVANÇADA DE L'APLICACIÓ -->
     <script>
         /**
-         * CLASSE TIMER
-         * Gestiona la lògica del compte enrere i l'estat.
+         * CLASSE CLASSROOM TIMER
+         * Gestiona la lògica de cronòmetre, dades i la interfície UI/UX modernitzada.
          */
         class ClassroomTimer {
             constructor() {
-                // Estat
+                // Estat bàsic
                 this.totalSeconds = 0;
                 this.remainingSeconds = 0;
                 this.intervalId = null;
                 this.isRunning = false;
                 this.isAlarmPlaying = false;
                 
-                // Audio Context per a l'alarma (Més fiable que carregar MP3s externs)
+                // Audio Context d'alarma reactiva
                 this.audioCtx = null;
-                this.oscillator = null;
-                this.gainNode = null;
+                this.alarmInterval = null;
 
-                // Elements del DOM
+                // Elements d'interfície DOM
                 this.elDisplay = document.getElementById('timerDisplay');
                 this.elProgressBar = document.getElementById('progressBar');
                 this.elStatus = document.getElementById('statusMessage');
@@ -185,10 +403,23 @@
                 this.elPresetsList = document.getElementById('presetsList');
                 this.elEmptyMsg = document.getElementById('emptyPresetsMsg');
 
-                // Gestió de Presets
+                // Elements auxiliars de diàleg i interfície
+                this.elToast = document.getElementById('customToast');
+                this.elToastText = document.getElementById('toastText');
+                this.elToastIcon = document.getElementById('toastIcon');
+                
+                this.elConfirmModal = document.getElementById('confirmModal');
+                this.elConfirmMessage = document.getElementById('confirmMessage');
+                this.btnConfirmCancel = document.getElementById('confirmCancelBtn');
+                this.btnConfirmOk = document.getElementById('confirmOkBtn');
+
+                this.elAboutModal = document.getElementById('aboutModal');
+
+                // Carregar Presets existents o iniciar per defecte
                 this.presets = JSON.parse(localStorage.getItem('timer_presets')) || [
-                    { id: 1, name: 'Lectura Ràpida', seconds: 300 }, // 5 min
-                    { id: 2, name: 'Examen Curt', seconds: 900 }     // 15 min
+                    { id: 101, name: 'Lectura Ràpida', seconds: 300 }, // 5 min
+                    { id: 102, name: 'Examen Curt', seconds: 900 },    // 15 min
+                    { id: 103, name: 'Treball en Equip', seconds: 1200 } // 20 min
                 ];
 
                 this.init();
@@ -198,23 +429,114 @@
                 this.addEventListeners();
                 this.renderPresets();
                 this.padInputs();
+                this.initTheme();
+            }
+
+            /**
+             * SISTEMA DE TOASTS PERSONALITZATS (REPLAÇA ALERT DE NAVEGADOR)
+             */
+            showNotification(message, type = 'info') {
+                this.elToastText.innerText = message;
+                
+                // Color d'icona segons el cas
+                if (type === 'error') {
+                    this.elToastIcon.innerHTML = `<i class="fa-solid fa-circle-exclamation text-red-500"></i>`;
+                } else if (type === 'success') {
+                    this.elToastIcon.innerHTML = `<i class="fa-solid fa-circle-check text-green-500"></i>`;
+                } else {
+                    this.elToastIcon.innerHTML = `<i class="fa-solid fa-circle-info text-indigo-500"></i>`;
+                }
+
+                // Mostrar
+                this.elToast.classList.remove('opacity-0', 'translate-y-12', 'pointer-events-none');
+                this.elToast.classList.add('opacity-100', 'translate-y-0');
+
+                // Desvanir després de 3,5 segons
+                clearTimeout(this.toastTimeout);
+                this.toastTimeout = setTimeout(() => {
+                    this.elToast.classList.add('opacity-0', 'translate-y-12', 'pointer-events-none');
+                    this.elToast.classList.remove('opacity-100', 'translate-y-0');
+                }, 3500);
+            }
+
+            /**
+             * DIÀLEG DE CONFIRMACIÓ MODAL (REPLAÇA CONFIRM DE NAVEGADOR)
+             */
+            askConfirmation(message, onConfirm, isDestructive = false) {
+                this.elConfirmMessage.innerText = message;
+                
+                // Ajustar estil del botó de confirmació segons gravetat de l'acció
+                if (isDestructive) {
+                    this.btnConfirmOk.className = "px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg shadow-sm transition-colors";
+                } else {
+                    this.btnConfirmOk.className = "px-4 py-2 text-sm font-medium text-white bg-[#4f46e5] hover:bg-[#4338ca] rounded-lg shadow-sm transition-colors";
+                }
+
+                // Obrir diàleg d'interfície
+                this.elConfirmModal.classList.remove('pointer-events-none', 'opacity-0');
+                this.elConfirmModal.classList.add('opacity-100');
+                this.elConfirmModal.firstElementChild.classList.remove('scale-95');
+                this.elConfirmModal.firstElementChild.classList.add('scale-100');
+
+                // Definició d'events temporals per evitar conflictes de context
+                const cleanup = () => {
+                    this.elConfirmModal.classList.add('pointer-events-none', 'opacity-0');
+                    this.elConfirmModal.classList.remove('opacity-100');
+                    this.elConfirmModal.firstElementChild.classList.remove('scale-100');
+                    this.elConfirmModal.firstElementChild.classList.add('scale-95');
+                    this.btnConfirmOk.removeEventListener('click', okHandler);
+                    this.btnConfirmCancel.removeEventListener('click', cancelHandler);
+                };
+
+                const okHandler = () => {
+                    cleanup();
+                    onConfirm();
+                };
+
+                const cancelHandler = () => {
+                    cleanup();
+                };
+
+                this.btnConfirmOk.addEventListener('click', okHandler);
+                this.btnConfirmCancel.addEventListener('click', cancelHandler);
+            }
+
+            // GESTIÓ DE MODAL ABOUT
+            showAboutModal() {
+                this.elAboutModal.classList.remove('pointer-events-none', 'opacity-0');
+                this.elAboutModal.classList.add('opacity-100');
+                this.elAboutModal.firstElementChild.classList.remove('scale-95');
+                this.elAboutModal.firstElementChild.classList.add('scale-100');
+            }
+
+            hideAboutModal() {
+                this.elAboutModal.classList.add('pointer-events-none', 'opacity-0');
+                this.elAboutModal.classList.remove('opacity-100');
+                this.elAboutModal.firstElementChild.classList.remove('scale-100');
+                this.elAboutModal.firstElementChild.classList.add('scale-95');
             }
 
             addEventListeners() {
                 this.btnStart.addEventListener('click', () => this.start());
                 this.btnPause.addEventListener('click', () => this.pause());
                 this.btnReset.addEventListener('click', () => this.reset());
-                // CORRECCIÓ: Cridem a reset() en lloc de stopAlarm() per evitar recursivitat
                 this.btnStopAlarm.addEventListener('click', () => this.reset());
                 this.btnSavePreset.addEventListener('click', () => this.saveCurrentAsPreset());
 
-                // Formatar inputs quan perden el focus
+                // Formatar inputs automàticament en focusout/canvis
                 [this.elInputH, this.elInputM, this.elInputS].forEach(input => {
                     input.addEventListener('change', () => this.validateAndPadInput(input));
+                    input.addEventListener('focus', () => input.select());
+                });
+
+                // Tancar diàlegs en fer clic fora d'ells
+                this.elConfirmModal.addEventListener('click', (e) => {
+                    if (e.target === this.elConfirmModal) this.btnConfirmCancel.click();
+                });
+                this.elAboutModal.addEventListener('click', (e) => {
+                    if (e.target === this.elAboutModal) this.hideAboutModal();
                 });
             }
-
-            // --- LÒGICA DEL TEMPORITZADOR ---
 
             getInputSeconds() {
                 const h = parseInt(this.elInputH.value) || 0;
@@ -228,7 +550,6 @@
                 this.remainingSeconds = seconds;
                 this.updateDisplay();
                 
-                // Actualitzar inputs per reflectir el temps seleccionat (útil si ve d'un preset)
                 const h = Math.floor(seconds / 3600);
                 const m = Math.floor((seconds % 3600) / 60);
                 const s = seconds % 60;
@@ -240,18 +561,17 @@
 
             start() {
                 if (!this.isRunning) {
-                    // Si estem a 0 i l'usuari prem start, agafem els valors dels inputs
                     if (this.remainingSeconds === 0) {
                         const inputSecs = this.getInputSeconds();
                         if (inputSecs === 0) {
-                            alert("Si us plau, introdueix un temps superior a 0.");
+                            this.showNotification("Si us plau, introdueix un temps superior a 0.", "error");
                             return;
                         }
                         this.totalSeconds = inputSecs;
                         this.remainingSeconds = inputSecs;
                     }
 
-                    // Inicialitzar Audio Context (requereix gest d'usuari)
+                    // Inicialització segura del context d'àudio
                     if (!this.audioCtx) {
                         this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                     }
@@ -261,9 +581,10 @@
 
                     this.isRunning = true;
                     this.updateControlsState();
-                    this.elStatus.innerText = "Temps en marxa...";
-                    this.elStatus.className = "mt-4 text-lg font-bold text-green-600 h-8";
-                    this.elInputContainer.classList.add('opacity-50', 'pointer-events-none'); // Desactivar inputs
+                    
+                    this.elStatus.innerHTML = `<i class="fa-solid fa-play text-xs text-green-500"></i><span>Temps actiu...</span>`;
+                    this.elStatus.className = "mt-4 text-base font-bold text-green-600 dark:text-green-400 h-6 flex items-center justify-center gap-2";
+                    this.elInputContainer.classList.add('opacity-40', 'pointer-events-none');
 
                     this.intervalId = setInterval(() => {
                         this.tick();
@@ -276,25 +597,24 @@
                     clearInterval(this.intervalId);
                     this.isRunning = false;
                     this.updateControlsState();
-                    this.elStatus.innerText = "En pausa";
-                    this.elStatus.className = "mt-4 text-lg font-bold text-amber-500 h-8";
+                    this.elStatus.innerHTML = `<i class="fa-solid fa-pause text-xs text-amber-500"></i><span>En pausa</span>`;
+                    this.elStatus.className = "mt-4 text-base font-bold text-amber-500 dark:text-amber-400 h-6 flex items-center justify-center gap-2";
                 }
             }
 
             reset() {
                 this.pause();
-                this.stopAlarm(); // Aquest mètode atura els efectes (visuals/so)
+                this.stopAlarm();
                 this.remainingSeconds = 0;
                 this.totalSeconds = 0;
                 
-                // Reset inputs
                 this.elInputH.value = "00";
                 this.elInputM.value = "00";
                 this.elInputS.value = "00";
                 
-                this.elInputContainer.classList.remove('opacity-50', 'pointer-events-none');
-                this.elStatus.innerText = "A punt per començar";
-                this.elStatus.className = "mt-4 text-lg font-semibold text-gray-500 h-8";
+                this.elInputContainer.classList.remove('opacity-40', 'pointer-events-none');
+                this.elStatus.innerHTML = `<span>A punt per començar</span>`;
+                this.elStatus.className = "mt-4 text-base font-semibold text-gray-500 dark:text-gray-400 h-6 flex items-center justify-center gap-2";
                 this.updateDisplay();
             }
 
@@ -314,21 +634,23 @@
 
                 const displayString = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
                 this.elDisplay.innerText = displayString;
-                document.title = `${displayString} - Temporitzador`;
+                document.title = `${displayString} - Temporitzador d'aula`;
 
-                // Actualitzar barra de progrés
+                // Actualització visual de la barra de progrés
                 if (this.totalSeconds > 0) {
                     const percentage = (this.remainingSeconds / this.totalSeconds) * 100;
                     this.elProgressBar.style.width = `${percentage}%`;
                     
-                    // Canviar color de barra segons urgència
                     if (percentage < 20) {
                         this.elProgressBar.className = "h-full w-full bg-red-500 transition-all duration-1000 ease-linear";
                     } else if (percentage < 50) {
                         this.elProgressBar.className = "h-full w-full bg-amber-500 transition-all duration-1000 ease-linear";
                     } else {
-                        this.elProgressBar.className = "h-full w-full bg-indigo-500 transition-all duration-1000 ease-linear";
+                        this.elProgressBar.className = "h-full w-full bg-indigo-600 dark:bg-indigo-500 transition-all duration-1000 ease-linear";
                     }
+                } else {
+                    this.elProgressBar.style.width = '100%';
+                    this.elProgressBar.className = "h-full w-full bg-indigo-600 dark:bg-indigo-500";
                 }
             }
 
@@ -336,33 +658,34 @@
                 if (this.isRunning) {
                     this.btnStart.classList.add('hidden');
                     this.btnPause.classList.remove('hidden');
-                    this.btnSavePreset.classList.add('hidden'); // No guardar mentre corre
+                    this.btnSavePreset.classList.add('hidden');
                 } else {
                     this.btnStart.classList.remove('hidden');
                     this.btnPause.classList.add('hidden');
                     this.btnSavePreset.classList.remove('hidden');
                     
-                    // Canviar text botó start si és reprendre
                     if (this.remainingSeconds > 0 && this.remainingSeconds < this.totalSeconds) {
-                        this.btnStart.innerHTML = '<i class="ph ph-play text-2xl"></i> REPRENDRE';
+                        this.btnStart.innerHTML = '<i class="fa-solid fa-play"></i> <span>REPRENDRE</span>';
                     } else {
-                        this.btnStart.innerHTML = '<i class="ph ph-play text-2xl"></i> INICIAR';
+                        this.btnStart.innerHTML = '<i class="fa-solid fa-play"></i> <span>INICIAR</span>';
                     }
                 }
             }
 
-            // --- ALARMA I SO ---
+            // --- ALARMA ACÚSTICA I VISUAL DE TEMPS ESGOTAT ---
 
             triggerAlarm() {
-                this.pause(); // Aturar el cronòmetre tècnicament
+                this.pause();
                 this.remainingSeconds = 0;
                 this.updateDisplay();
                 this.isAlarmPlaying = true;
 
-                // UI d'Alarma
-                this.elStatus.innerText = "TEMPS ESGOTAT!";
-                this.elStatus.className = "mt-4 text-lg font-black text-red-600 h-8";
-                this.elBody.classList.add('alarm-active'); // Fons parpellejant
+                // Actualització visual per a entorn d'aula
+                this.elStatus.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-xs text-red-600 animate-bounce"></i><span>TEMPS ESGOTAT!</span>`;
+                this.elStatus.className = "mt-4 text-base font-black text-red-600 dark:text-red-400 h-6 flex items-center justify-center gap-2";
+                
+                // Activar fons pampalluguejant d'alarma visual
+                this.elBody.classList.add('alarm-active');
                 
                 this.btnStart.classList.add('hidden');
                 this.btnPause.classList.add('hidden');
@@ -375,7 +698,6 @@
             playAlarmSound() {
                 if (!this.audioCtx) return;
 
-                // Crear oscil·lador per fer un so tipus "Beep Beep"
                 const playBeep = () => {
                     if (!this.isAlarmPlaying) return;
 
@@ -386,23 +708,21 @@
                     gain.connect(this.audioCtx.destination);
 
                     osc.type = 'sine';
-                    osc.frequency.setValueAtTime(880, this.audioCtx.currentTime); // A5
-                    osc.frequency.setValueAtTime(440, this.audioCtx.currentTime + 0.1); // A4
+                    osc.frequency.setValueAtTime(880, this.audioCtx.currentTime); // Beep agut
+                    osc.frequency.setValueAtTime(440, this.audioCtx.currentTime + 0.12); // To de seguretat
                     
-                    gain.gain.setValueAtTime(0.5, this.audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 0.5);
+                    gain.gain.setValueAtTime(0.4, this.audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 0.45);
 
                     osc.start();
                     osc.stop(this.audioCtx.currentTime + 0.5);
                 };
 
                 playBeep();
-                this.alarmInterval = setInterval(playBeep, 1000); // Repetir cada segon
+                this.alarmInterval = setInterval(playBeep, 1000);
             }
 
             stopAlarm() {
-                // CORRECCIÓ: Aquesta funció només atura els efectes i restaura UI bàsica,
-                // ja no crida a this.reset() per evitar el bucle infinit.
                 this.isAlarmPlaying = false;
                 if (this.alarmInterval) clearInterval(this.alarmInterval);
                 
@@ -411,34 +731,42 @@
                 this.btnReset.classList.remove('hidden');
             }
 
-            // --- GESTIÓ DE PRESETS ---
+            // --- GESTIÓ I PERSISTÈNCIA DE PRESETS ---
 
             saveCurrentAsPreset() {
                 const secs = this.getInputSeconds();
                 if (secs === 0) {
-                    alert("Introdueix un temps per guardar-lo.");
+                    this.showNotification("Escriu un temps vàlid per poder desar-lo.", "error");
                     return;
                 }
 
-                const name = prompt("Nom per a aquest temps (ex: Lectura silenciosa):", "Nou Temps");
-                if (name) {
+                // Substitució de prompt primitiu per modal de text
+                const name = prompt("Escriu el nom per a aquest predefinit (ex: Silenci de treball):", "Nou Temps d'aula");
+                if (name && name.trim() !== '') {
                     const newPreset = {
                         id: Date.now(),
-                        name: name,
+                        name: name.trim(),
                         seconds: secs
                     };
                     this.presets.push(newPreset);
                     this.savePresetsToStorage();
                     this.renderPresets();
+                    this.showNotification("Nou predefinit desat correctament!", "success");
                 }
             }
 
             deletePreset(id) {
-                if(confirm("Vols eliminar aquest temps guardat?")) {
-                    this.presets = this.presets.filter(p => p.id !== id);
-                    this.savePresetsToStorage();
-                    this.renderPresets();
-                }
+                // Ús segur d'askConfirmation en comptes de confirm() de navegador
+                this.askConfirmation(
+                    "Estàs segur que vols eliminar permanentment aquest predefinit d'aula?", 
+                    () => {
+                        this.presets = this.presets.filter(p => p.id !== id);
+                        this.savePresetsToStorage();
+                        this.renderPresets();
+                        this.showNotification("Predefinit eliminat correctament.", "info");
+                    },
+                    true // Diàleg destructiu (estil vermell d'alerta)
+                );
             }
 
             savePresetsToStorage() {
@@ -449,43 +777,49 @@
                 this.elPresetsList.innerHTML = '';
                 
                 if (this.presets.length === 0) {
-                    this.elEmptyMsg.style.display = 'block';
+                    this.elEmptyMsg.classList.remove('hidden');
                 } else {
-                    this.elEmptyMsg.style.display = 'none';
+                    this.elEmptyMsg.classList.add('hidden');
                     this.presets.forEach(preset => {
                         const h = Math.floor(preset.seconds / 3600);
                         const m = Math.floor((preset.seconds % 3600) / 60);
                         const s = preset.seconds % 60;
-                        const timeStr = `${h>0 ? h+'h ' : ''}${m}m ${s>0 ? s+'s' : ''}`;
+                        const timeStr = `${h > 0 ? h + 'h ' : ''}${m}m ${s > 0 ? s + 's' : ''}`;
 
-                        const btn = document.createElement('div');
-                        btn.className = "flex items-center justify-between bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow group";
-                        btn.innerHTML = `
-                            <button class="flex-grow text-left flex items-center gap-3 focus:outline-none" onclick="timerApp.loadPreset(${preset.seconds})">
-                                <div class="bg-indigo-100 text-indigo-600 p-2 rounded-full">
-                                    <i class="ph ph-clock-countdown text-xl"></i>
+                        const card = document.createElement('div');
+                        // Cartografia amb estil coherent
+                        card.className = "flex items-center justify-between bg-white dark:bg-gray-750 p-3 rounded-xl border border-gray-150 dark:border-gray-700 hover:shadow-md hover:border-gray-300 dark:hover:border-gray-650 transition-all group relative";
+                        card.innerHTML = `
+                            <button class="flex-grow text-left flex items-center gap-3 focus:outline-none" onclick="timerApp.loadPreset(${preset.seconds})" aria-label="Carregar predefinit ${preset.name}">
+                                <div class="bg-indigo-50 dark:bg-gray-850 text-[#4f46e5] dark:text-indigo-400 p-2.5 rounded-xl transition-colors">
+                                    <i class="fa-solid fa-hourglass-half"></i>
                                 </div>
-                                <div>
-                                    <div class="font-bold text-gray-800 text-sm">${preset.name}</div>
-                                    <div class="text-xs text-gray-500 font-mono">${timeStr}</div>
+                                <div class="truncate pr-2">
+                                    <div class="font-bold text-gray-800 dark:text-gray-100 text-sm truncate">${preset.name}</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400 font-mono-numbers mt-0.5">${timeStr}</div>
                                 </div>
                             </button>
-                            <button class="text-gray-300 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100" onclick="timerApp.deletePreset(${preset.id})" aria-label="Eliminar preset">
-                                <i class="ph ph-trash text-lg"></i>
+                            <!-- Botó destructiu de Perill basat en el manual d'estil de l'App -->
+                            <button class="border border-red-200 dark:border-red-900/50 text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 p-2 rounded-lg transition-colors md:opacity-0 md:group-hover:opacity-100 focus:opacity-100" onclick="timerApp.deletePreset(${preset.id})" aria-label="Eliminar predefinit">
+                                <i class="fa-solid fa-trash-can text-sm"></i>
                             </button>
                         `;
-                        this.elPresetsList.appendChild(btn);
+                        this.elPresetsList.appendChild(card);
                     });
                 }
             }
 
             loadPreset(seconds) {
-                if (this.isRunning) return; // No canviar mentre corre
+                if (this.isRunning) {
+                    this.showNotification("Pausa o reinicia el temporitzador abans de carregar un predefinit.", "info");
+                    return;
+                }
                 this.reset();
                 this.setTime(seconds);
+                this.showNotification("Temps predefinit carregat.", "success");
             }
 
-            // --- UTILITATS ---
+            // --- UTILITATS D'INPUT I ASPECTE ---
 
             validateAndPadInput(input) {
                 let val = parseInt(input.value);
@@ -504,16 +838,59 @@
                 this.validateAndPadInput(this.elInputM);
                 this.validateAndPadInput(this.elInputS);
             }
+
+            // GESTIÓ DEL MENU LATERAL MÒBIL (DRAWER)
+            toggleSidebar() {
+                const drawer = document.getElementById('sidebarDrawer');
+                const overlay = document.getElementById('drawerOverlay');
+                const content = document.getElementById('drawerContent');
+
+                if (drawer.classList.contains('pointer-events-none')) {
+                    // Obrir Drawer
+                    drawer.classList.remove('pointer-events-none');
+                    overlay.classList.remove('opacity-0');
+                    overlay.classList.add('opacity-100');
+                    content.classList.remove('-translate-x-full');
+                    content.classList.add('translate-x-0');
+                } else {
+                    // Tancar Drawer
+                    drawer.classList.add('pointer-events-none');
+                    overlay.classList.add('opacity-0');
+                    overlay.classList.remove('opacity-100');
+                    content.classList.remove('translate-x-0');
+                    content.classList.add('-translate-x-full');
+                }
+            }
+
+            // GESTIÓ INTEGRAL DEL TEMA VISUAL (DARK MODE)
+            initTheme() {
+                const savedTheme = localStorage.getItem('theme');
+                if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                    document.documentElement.classList.add('dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                }
+            }
+
+            toggleDarkMode() {
+                if (document.documentElement.classList.contains('dark')) {
+                    document.documentElement.classList.remove('dark');
+                    localStorage.setItem('theme', 'light');
+                    this.showNotification("S'ha activat el mode clar.", "info");
+                } else {
+                    document.documentElement.classList.add('dark');
+                    localStorage.setItem('theme', 'dark');
+                    this.showNotification("S'ha activat el mode fosc.", "info");
+                }
+            }
         }
 
-        // Inicialitzar l'aplicació quan el DOM estigui llest
+        // Inicialització en carregar completament l'estructura DOM
         let timerApp;
-        document.addEventListener('DOMContentLoaded', () => {
+        window.onload = function () {
             timerApp = new ClassroomTimer();
-            // Fer l'app accessible globalment per als onclicks inline
             window.timerApp = timerApp;
-        });
-
+        }
     </script>
 </body>
 </html>
