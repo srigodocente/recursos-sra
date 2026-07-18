@@ -83,7 +83,7 @@
                 <!-- Icona Corporativa -->
                 <i class="fa-solid fa-layer-group text-lg hidden sm:block"></i>
                 <!-- Títol de l'App -->
-                <span class="text-lg font-bold tracking-wide">Temporitzador</span>
+                <span class="text-lg font-bold tracking-wide">Temporitzador d'aula</span>
             </div>
 
             <!-- BADGE CENTRAL (CRÈDITS I LLICÈNCIA) - PANTALLES MARS (lg:flex) -->
@@ -338,7 +338,7 @@
             </div>
             <div class="text-sm text-gray-600 dark:text-gray-300 space-y-3 leading-relaxed">
                 <p>Aquesta aplicació és un temporitzador modular adaptat perfectament per a l'ús educatiu en aules de Primària i Secundària.</p>
-                <p>Permet configurar i emmagatzemar intervals predefinits de gestió temporal, facilitant dinàmiques de lectura silenciosa, resolució d'exercicis ràpids, exàmens curts o tasques cooperatives.</p>
+                <p>Permet configurar i emmagatzemar intervals predefinits de gestió temporal, facilitant dinàmiques de lectura silenciosa, resolució d'exercicis ràpids, exàmens corts o tasques cooperatives.</p>
                 
                 <div class="border-t border-gray-100 dark:border-gray-700 pt-3 mt-4">
                     <p class="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase mb-2">Crèdits i autoria:</p>
@@ -520,7 +520,7 @@
                 this.btnStart.addEventListener('click', () => this.start());
                 this.btnPause.addEventListener('click', () => this.pause());
                 this.btnReset.addEventListener('click', () => this.reset());
-                this.btnStopAlarm.addEventListener('click', () => this.reset());
+                this.btnStopAlarm.addEventListener('click', () => this.dismissAlarm());
                 this.btnSavePreset.addEventListener('click', () => this.saveCurrentAsPreset());
 
                 // Formatar inputs automàticament en focusout/canvis
@@ -603,6 +603,11 @@
             }
 
             reset() {
+                this.clear();
+                this.showNotification("Temporitzador inicialitzat completament.", "info");
+            }
+
+            clear() {
                 this.pause();
                 this.stopAlarm();
                 this.remainingSeconds = 0;
@@ -616,6 +621,12 @@
                 this.elStatus.innerHTML = `<span>A punt per començar</span>`;
                 this.elStatus.className = "mt-4 text-base font-semibold text-gray-500 dark:text-gray-400 h-6 flex items-center justify-center gap-2";
                 this.updateDisplay();
+                this.updateControlsState();
+            }
+
+            dismissAlarm() {
+                this.clear();
+                this.showNotification("Alarma aturada i aplicació inicialitzada.", "info");
             }
 
             tick() {
@@ -814,7 +825,7 @@
                     this.showNotification("Pausa o reinicia el temporitzador abans de carregar un predefinit.", "info");
                     return;
                 }
-                this.reset();
+                this.clear();
                 this.setTime(seconds);
                 this.showNotification("Temps predefinit carregat.", "success");
             }
