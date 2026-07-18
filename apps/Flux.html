@@ -1,0 +1,1563 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flux - Editor de diagrames</title>
+    <!-- Tailwind CSS CDN per visualització premium i classes adaptatives -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome per icones de xarxes, menús, logotips i Creative Commons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+        :root {
+            --bg-app: #f4f4f5; /* Zinc 100 */
+            --bg-canvas: #ffffff; /* White canvas background requested */
+            --bg-panel: #ffffff;
+            --text-main: #18181b; /* Zinc 900 */
+            --text-muted: #71717a; /* Zinc 500 */
+            --primary: #4f46e5; /* Indigo 600 - corporatiu */
+            --primary-hover: #4338ca; /* Indigo 700 */
+            --primary-light: #e0e7ff; /* Indigo 100 */
+            --primary-text: #3730a3; /* Indigo 800 */
+            --border-color: #e4e4e7; /* Zinc 200 */
+            --border-focus: #a5b4fc; /* Indigo 300 */
+            
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-panel: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+            --shadow-float: 0 10px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.04);
+            
+            --radius-xl: 16px;
+            --radius-lg: 12px;
+            --radius-md: 8px;
+            --radius-sm: 6px;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        /* ── Base ── */
+        body {
+            font-family: 'Inter', sans-serif;
+            overscroll-behavior: none;
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--bg-app);
+            color: var(--text-main);
+            font-size: 14px;
+            line-height: 1.5;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* ── Scrollbar de precisió ── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #d4d4d8; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #a1a1aa; }
+
+        /* ── Layout (App Body amb marges) ── */
+        .app-body { 
+            display: flex; 
+            flex: 1 1 0%; 
+            overflow: hidden; 
+            padding: 16px;
+            gap: 16px;
+        }
+
+        /* ── Sidebars Flotants ── */
+        .shapes-sidebar, #propertiesPanel {
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color) !important;
+            box-shadow: var(--shadow-panel) !important;
+            height: 100%;
+        }
+
+        /* ── Toggle switch de línies ortogonals (Emerald) ── */
+        .toggle-track {
+            display: inline-block; position: relative;
+            width: 44px; height: 24px;
+            background: rgba(255, 255, 255, 0.25); border-radius: 9999px;
+            flex-shrink: 0; transition: background .2s;
+        }
+        .toggle-track::after {
+            content: ''; position: absolute;
+            top: 2px; left: 2px;
+            width: 20px; height: 20px;
+            background: #ffffff; border-radius: 9999px;
+            transition: transform .2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 1px 3px rgba(0,0,0,.2);
+        }
+        #orthogonalToggle:checked + .toggle-track { background: #10b981; } /* Esmeralda quan actiu */
+        #orthogonalToggle:checked + .toggle-track::after { transform: translateX(20px); }
+        #orthogonalToggle { display: none; }
+
+        /* ── Canvas de treball (Llenç Blanc de dibuix) ── */
+        #canvasContainer {
+            position: relative; cursor: grab;
+            background-color: var(--bg-canvas) !important;
+            background-image: none !important;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-color);
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.01);
+            outline: none; user-select: none; -webkit-user-select: none;
+        }
+        #canvasContainer:active { cursor: grabbing; }
+
+        /* ── Inline text editor ── */
+        #inlineEditor {
+            position: absolute; display: none;
+            background: rgba(255,255,255,.98);
+            border: 2px solid var(--primary);
+            border-radius: var(--radius-sm);
+            padding: 6px;
+            font-family: 'Inter', sans-serif;
+            font-size: 14px; line-height: 1.4; text-align: center;
+            resize: none; outline: none;
+            box-shadow: var(--shadow-float);
+            z-index: 1000; overflow: hidden;
+            white-space: pre-wrap; word-wrap: break-word;
+        }
+
+        /* ── Formes amb arestes negres ── */
+        .draggable-shape {
+            cursor: grab;
+            border: 2px solid #000000 !important;
+            background-color: #ffffff !important;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.04) !important;
+            transition: all .2s cubic-bezier(.4,0,.2,1);
+        }
+        .draggable-shape:hover {
+            transform: translateY(-2px) scale(1.05);
+            border-color: var(--primary) !important;
+            box-shadow: var(--shadow-panel) !important;
+        }
+        .draggable-shape:active { cursor: grabbing; transform: scale(0.98); }
+
+        /* Excepció pel símbol de la clau (brace) */
+        .draggable-shape[data-type="brace"] {
+            border: none !important;
+            background-color: transparent !important;
+            box-shadow: none !important;
+        }
+
+        /* ── Panell de Propietats ── */
+        #propertiesPanel {
+            width: 17rem; flex-shrink: 0;
+            background: var(--bg-panel); padding: 1.25rem;
+            z-index: 10; display: flex; flex-direction: column; overflow-y: auto;
+            transition: width .3s cubic-bezier(0.4, 0, 0.2, 1), opacity .2s ease;
+        }
+        #propertiesPanel.panel-hidden {
+            width: 0; padding: 0; opacity: 0;
+            overflow: hidden; border: none !important; margin: 0 !important; pointer-events: none;
+        }
+
+        /* ── Controls de Formulari Personalitzats ── */
+        input[type=range] {
+            -webkit-appearance: none; appearance: none;
+            height: 6px; border-radius: 99px;
+            background: var(--border-color); outline: none; cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px; height: 16px; border-radius: 50%;
+            background: var(--primary); cursor: pointer;
+            box-shadow: 0 2px 5px rgba(79, 70, 229, 0.4);
+            border: 2px solid #fff;
+        }
+        textarea {
+            font-family: 'Inter', sans-serif; width: 100%; font-size: 0.875rem;
+            padding: 0.75rem; border: 1px solid var(--border-color);
+            border-radius: var(--radius-md); outline: none; resize: vertical;
+            background: var(--bg-canvas); transition: border-color 0.2s;
+        }
+        textarea:focus { border-color: var(--primary); background: var(--bg-panel); box-shadow: 0 0 0 3px var(--primary-light); }
+        
+        input[type=color] {
+            width: 2.5rem; height: 2.5rem; padding: 0; border: none;
+            border-radius: var(--radius-sm); cursor: pointer; background: none;
+            overflow: hidden;
+        }
+        input[type=color]::-webkit-color-swatch-wrapper { padding: 0; }
+        input[type=color]::-webkit-color-swatch { border: 1px solid var(--border-color); border-radius: var(--radius-sm); }
+
+        /* ── Maquetació i Adaptabilitat Mòbil ── */
+        @media (max-width: 640px) {
+            .mobile-hide { display: none !important; }
+            .app-body { flex-direction: column; padding: 12px; gap: 8px; }
+            
+            aside.shapes-sidebar {
+                width: 100% !important; height: 4.5rem; flex-direction: row !important;
+                padding: 0 1rem !important; margin: 0; overflow-x: auto; overflow-y: hidden;
+                flex-shrink: 0; gap: 1rem; align-items: center;
+            }
+            aside.shapes-sidebar .sidebar-label, aside.shapes-sidebar .sidebar-hint { display: none; }
+            aside.shapes-sidebar .draggable-shape { flex-shrink: 0; margin: 0 !important; }
+
+            #propertiesPanel {
+                position: fixed; bottom: 0; left: 0; right: 0; width: 100% !important; max-height: 60vh;
+                border: 1px solid var(--border-color) !important; border-bottom: none !important;
+                border-radius: var(--radius-xl) var(--radius-xl) 0 0 !important;
+                box-shadow: var(--shadow-float) !important; z-index: 100;
+                transition: transform .3s cubic-bezier(.4,0,.2,1), opacity .2s ease;
+                transform: translateY(0); opacity: 1; margin: 0 !important;
+            }
+            #propertiesPanel.panel-hidden { transform: translateY(100%); opacity: 0; }
+            #propertiesPanel::before {
+                content: ''; display: block; width: 3rem; height: 4px;
+                background: #d4d4d8; border-radius: 2px; margin: 0 auto 1rem;
+            }
+        }
+        canvas { touch-action: none; }
+    </style>
+</head>
+<body class="flex flex-col h-screen">
+
+    <!-- Modals i Notificacions Alternatives a alert/confirm -->
+    <div id="customConfirm" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/20 backdrop-blur-sm transition-opacity">
+        <div class="bg-white p-6 rounded-2xl shadow-xl w-80 text-center transform scale-100 transition-transform border border-zinc-100">
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Netejar llenç</h3>
+            <p class="text-sm text-gray-500 mb-6">Segur que vols esborrar-ho tot? Aquesta acció no es pot desfer.</p>
+            <div class="flex gap-3 justify-center">
+                <!-- Botó Secundari Neutre -->
+                <button id="cancelClearBtn" class="px-4 py-2 text-sm font-medium text-zinc-500 border border-zinc-200 bg-transparent rounded-lg hover:bg-zinc-50 transition-colors">Cancel·lar</button>
+                <!-- Botó Destructiu -->
+                <button id="confirmClearBtn" class="px-4 py-2 text-sm font-medium text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">Esborrar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="exportModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/20 backdrop-blur-sm transition-opacity">
+        <div class="bg-white p-6 rounded-2xl shadow-xl w-80 text-left transform scale-100 transition-transform border border-zinc-100">
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Exportar Diagrama</h3>
+            <p class="text-sm text-gray-500 mb-3">Escriu el nom per al fitxer JSON:</p>
+            <input type="text" id="exportFilenameInput" value="diagrama" class="w-full px-3 py-2 border border-zinc-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-sm mb-6" placeholder="nom-del-diagrama">
+            <div class="flex gap-3 justify-end">
+                <!-- Botó Secundari Neutre -->
+                <button id="cancelExportBtn" class="px-4 py-2 text-sm font-medium text-zinc-500 border border-zinc-200 bg-transparent rounded-lg hover:bg-zinc-50 transition-colors">Cancel·lar</button>
+                <!-- Botó Primari Sòlid -->
+                <button id="confirmExportBtn" class="px-4 py-2 text-sm font-medium text-white bg-[#4f46e5] hover:bg-[#4338ca] rounded-lg shadow-sm transition-colors">Exportar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal d'Informació de l'App (Nova secció) -->
+    <div id="infoModal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/20 backdrop-blur-sm transition-opacity">
+        <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md mx-4 text-left transform scale-100 transition-transform border border-zinc-100 max-h-[90vh] overflow-y-auto">
+            <!-- Capçalera del Modal -->
+            <div class="flex justify-between items-center mb-4 border-b border-zinc-100 pb-2">
+                <h3 class="text-lg font-bold text-gray-900 flex items-center gap-2">
+                    <i class="fa-solid fa-circle-info text-[#4f46e5]"></i>
+                    <span>Informació de FLUX</span>
+                </h3>
+                <button id="closeInfoIconBtn" class="text-zinc-400 hover:text-zinc-600 transition-colors" title="Tancar">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+            <!-- Contingut -->
+            <div class="space-y-4 text-sm text-zinc-600 leading-relaxed mb-6">
+                <p class="font-medium text-zinc-800">Benvingut/da a <strong>Flux - Editor de diagrames</strong>!</p>
+                <p>Una eina web de diagramació lleugera, àgil i completament funcional dissenyada per crear fluxos de treball, mapes conceptuals i esquemes ràpids directament des del navegador.</p>
+                
+                <div class="bg-zinc-50 p-3 rounded-xl border border-zinc-200/60 space-y-2">
+                    <h4 class="font-semibold text-zinc-800 text-xs uppercase tracking-wider mb-1 flex items-center gap-1">
+                        <i class="fa-solid fa-wand-magic-sparkles text-indigo-500"></i> Funcions i Dreceres:
+                    </h4>
+                    <ul class="space-y-1.5 text-xs list-disc list-inside">
+                        <li><strong class="text-zinc-700">Crear Formes:</strong> Arrossega i amolla des de la barra esquerra al llenç (o clica-les si estàs en mòbil).</li>
+                        <li><strong class="text-zinc-700">Connectar:</strong> Fes clic i arrossega des d'un connector (punt blau d'una forma seleccionada) fins a una altra forma.</li>
+                        <li><strong class="text-zinc-700">Editar Text:</strong> Doble clic a qualsevol element o línia per redactar el contingut.</li>
+                        <li><strong class="text-zinc-700">Estils de Text:</strong> Admet Markdown senzill per formatar text (<code class="bg-zinc-200/60 px-1 rounded">**negreta**</code>, <code class="bg-zinc-200/60 px-1 rounded">*cursiva*</code>).</li>
+                        <li><strong class="text-zinc-700">Navegar pel Llenç:</strong> Fes clic dret o mantén premuda la tecla <kbd class="bg-zinc-100 px-1 py-0.5 border border-zinc-300 rounded text-[10px]">Alt</kbd> mentre arrossegues el ratolí.</li>
+                        <li><strong class="text-zinc-700">Eliminar Selecció:</strong> Selecciona qualsevol element i clica "Eliminar Selecció" al panell o prem <kbd class="bg-zinc-100 px-1 py-0.5 border border-zinc-300 rounded text-[10px]">Supr</kbd> / <kbd class="bg-zinc-100 px-1 py-0.5 border border-zinc-300 rounded text-[10px]">Backspace</kbd>.</li>
+                    </ul>
+                </div>
+
+                <!-- Crèdits a mòbils integrats directament al modal -->
+                <div class="border-t border-zinc-100 pt-3 text-xs flex flex-col items-center text-center gap-1">
+                    <span class="font-bold underline" style="color: #4b1c7a;">
+                        <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener">Santiago Rigo Aguiló</a>
+                    </span>
+                    <div class="flex items-center gap-1.5 justify-center">
+                        <span class="font-bold underline" style="color: #4b1c7a;">
+                            <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener">CC BY-NC-ND 4.0</a>
+                        </span>
+                        <div class="flex items-center gap-0.5 text-black">
+                            <i class="fa-brands fa-creative-commons"></i>
+                            <i class="fa-brands fa-creative-commons-by"></i>
+                            <i class="fa-brands fa-creative-commons-nc"></i>
+                            <i class="fa-brands fa-creative-commons-nd"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Peus del Modal -->
+            <div class="flex justify-end">
+                <button id="closeInfoBtn" class="px-5 py-2 text-sm font-medium text-white bg-[#4f46e5] hover:bg-[#4338ca] rounded-lg shadow-sm transition-colors w-full sm:w-auto">Entès</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CAPÇALERA COMPLETA I RESPONSIVE -->
+    <header class="h-14 bg-[#4f46e5] dark:bg-[#3730a3] shadow-lg relative z-20 flex-shrink-0 flex items-center">
+        <div class="flex items-center justify-between gap-3 px-4 sm:px-6 h-14 relative w-full">
+            
+            <!-- BLOC ESQUERRE: Logotip, hamburguesa i controls de desfer/refer -->
+            <div class="flex items-center gap-3">
+                <!-- Botó de Menú Hamburguesa en mòbils per toggling del panell lateral de formes -->
+                <button id="menuToggleBtn" class="md:hidden text-white hover:bg-white/10 p-1.5 rounded-lg transition-colors" title="Alternar menú de formes">
+                    <i class="fa-solid fa-bars text-lg"></i>
+                </button>
+                <!-- Icona Corporativa -->
+                <i class="fa-solid fa-layer-group text-white text-xl hidden sm:block"></i>
+                <!-- Títol de l'Aplicació -->
+                <h1 class="text-lg font-bold tracking-wide text-white flex items-center gap-1.5">
+                    <span>Flux</span>
+                </h1>
+                
+                <div class="w-px h-5 bg-white/20 mx-1 hidden sm:block"></div>
+                
+                <!-- Botons del Header: Desfer i Refer (Disseny Translúcid bg-white/15) -->
+                <div class="flex gap-1">
+                    <button id="undoBtn" class="p-1.5 bg-white/15 text-white hover:bg-white/25 active:bg-white/20 rounded-lg disabled:opacity-30 disabled:hover:bg-white/15 transition-all" title="Desfer (Ctrl+Z)">
+                        <i class="fa-solid fa-rotate-left text-sm"></i>
+                    </button>
+                    <button id="redoBtn" class="p-1.5 bg-white/15 text-white hover:bg-white/25 active:bg-white/20 rounded-lg disabled:opacity-30 disabled:hover:bg-white/15 transition-all" title="Refer (Ctrl+Y)">
+                        <i class="fa-solid fa-rotate-right text-sm"></i>
+                    </button>
+                </div>
+                
+                <!-- Toggle de línies ortogonals adaptatiu -->
+                <label class="flex items-center gap-2 cursor-pointer ml-2" title="Alternar entre línies rectes i ortogonals">
+                    <input type="checkbox" id="orthogonalToggle" checked>
+                    <span class="toggle-track"></span>
+                    <span class="text-xs font-semibold text-white/90 mobile-hide">Línies Ortogonals</span>
+                </label>
+            </div>
+            
+            <!-- BADGE CENTRAL CORPORATIU (Visible a pantalles grans / lg:flex) -->
+            <div class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 min-w-max hidden lg:flex flex-col items-center justify-center bg-white rounded-full px-5 py-1 text-center shadow-md ring-2 ring-white/20 z-30">
+                <span class="text-xs font-bold underline" style="color: #4b1c7a;">
+                    <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener">Santiago Rigo Aguiló</a>
+                </span>
+                <div class="flex items-center gap-1.5 text-[11px] mt-0.5">
+                    <span class="font-bold underline" style="color: #4b1c7a;">
+                        <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener">CC BY-NC-ND 4.0</a>
+                    </span>
+                    <div class="flex items-center gap-0.5 text-xs text-black">
+                        <i class="fa-brands fa-creative-commons"></i>
+                        <i class="fa-brands fa-creative-commons-by"></i>
+                        <i class="fa-brands fa-creative-commons-nc"></i>
+                        <i class="fa-brands fa-creative-commons-nd"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BLOC DRET: Botons d'importació, exportació, info i neteja en format Translúcid -->
+            <div class="flex items-center justify-end gap-2">
+                <!-- Botó d'Importar JSON (Minimalista i translúcid) -->
+                <button id="importBtn" class="px-3 py-1.5 bg-white/15 text-white hover:bg-white/25 active:bg-white/20 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5">
+                    <i class="fa-solid fa-folder-open text-xs"></i>
+                    <span class="hidden md:inline">Importar JSON</span>
+                </button>
+                <input type="file" id="importFile" accept=".json" class="hidden">
+                
+                <!-- Botó d'Exportar JSON (Minimalista i translúcid) -->
+                <button id="exportJsonBtn" class="px-3 py-1.5 bg-white/15 text-white hover:bg-white/25 active:bg-white/20 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5">
+                    <i class="fa-solid fa-floppy-disk text-xs"></i>
+                    <span class="hidden md:inline">Exportar JSON</span>
+                </button>
+                
+                <!-- Botó Netejar (Translúcid de perill coordinat amb vermell) -->
+                <button id="clearBtn" class="px-3 py-1.5 bg-red-500/20 text-red-100 hover:bg-red-500/35 active:bg-red-500/30 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 border border-red-500/30">
+                    <i class="fa-solid fa-trash-can text-xs"></i>
+                    <span class="hidden md:inline">Netejar</span>
+                </button>
+
+                <!-- Botó d'Informació de l'App -->
+                <button id="infoBtn" class="px-3 py-1.5 bg-white/15 text-white hover:bg-white/25 active:bg-white/20 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5" title="Informació de l'aplicació">
+                    <i class="fa-solid fa-circle-info text-xs"></i>
+                    <span class="hidden md:inline">Info</span>
+                </button>
+
+            </div>
+        </div>
+    </header>
+
+    <!-- COS PRINCIPAL DE L'APLICACIÓ -->
+    <div class="app-body">
+        <!-- BARRA LATERAL ESQUERRA: Catàleg de formes interactives d'arrossegament -->
+        <aside class="shapes-sidebar w-20 bg-white flex flex-col items-center py-5 space-y-6 z-10 overflow-y-auto">
+            <div class="sidebar-label text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 text-center">Formes</div>
+            
+            <!-- Formes interactives -->
+            <div class="draggable-shape w-12 h-10 flex items-center justify-center rounded" draggable="true" data-type="rectangle" title="Rectangle"></div>
+            
+            <div class="draggable-shape w-10 h-10 flex items-center justify-center rotate-45 transform origin-center" draggable="true" data-type="diamond" title="Rombe" style="margin-top: 1.5rem; margin-bottom: 0.5rem;"></div>
+            
+            <div class="draggable-shape rounded-full w-12 h-10 flex items-center justify-center" draggable="true" data-type="oval" title="Oval"></div>
+            
+            <div class="draggable-shape w-12 h-10 flex items-center justify-center relative" draggable="true" data-type="parallelogram" title="Paral·lelogram" style="transform: skew(-15deg);"></div>
+
+            <!-- Clau / Brace -->
+            <div class="draggable-shape rounded w-12 h-10 flex items-center justify-center" draggable="true" data-type="brace" title="Clau { (anotació)">
+                <svg viewBox="0 0 24 24" class="w-6 h-6" fill="none" stroke="#000000" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M8 3C6.5 3 6 3.8 6 5v4c0 1.5-1 2-2 2 1 0 2 .5 2 2v4c0 1.2.5 2 2 2"/>
+                </svg>
+            </div>
+            
+            <div class="sidebar-hint text-[11px] text-zinc-400 text-center px-2 mt-auto pt-5 border-t border-zinc-100 w-full font-medium">Arrossega<br>al llenç</div>
+        </aside>
+
+        <!-- CANVES PRINCIPAL DE DIBUIX -->
+        <main class="flex-1 relative flex flex-col" id="canvasContainer" tabindex="0">
+            <canvas id="flowchartCanvas" class="absolute inset-0 w-full h-full rounded-lg"></canvas>
+            
+            <!-- Editor Text In-line -->
+            <textarea id="inlineEditor" placeholder="Escriu text..."></textarea>
+            
+            <!-- Indicadors Flotants del Canvas -->
+            <div class="absolute bottom-4 right-4 bg-white px-4 py-2 rounded-full shadow-lg border border-zinc-200 text-xs font-semibold text-zinc-600 flex items-center gap-3 pointer-events-none z-10">
+                <span id="zoomLevel">100%</span>
+                <div class="w-px h-3 bg-zinc-300"></div>
+                <span class="text-zinc-500 font-medium">Doble clic per editar</span>
+            </div>
+        </main>
+
+        <!-- PANELL LATERAL DRET: Propietats i Edició de Formes / Línies -->
+        <aside id="propertiesPanel" class="panel-hidden">
+            <div class="flex justify-between items-center mb-5 border-b border-zinc-100 pb-3">
+                <h2 class="text-[11px] font-bold uppercase tracking-widest text-zinc-400">Propietats</h2>
+                <button id="closePropPanel" class="p-1 rounded-md text-zinc-400 hover:text-zinc-700 hover:bg-zinc-100 transition-colors" title="Tancar panell de propietats">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <div id="selectionProps" class="space-y-6 flex-1 flex flex-col">
+                <!-- Color de Fons / Línia -->
+                <div>
+                    <label class="block text-sm font-semibold text-zinc-700 mb-2">Color de Fons / Línia</label>
+                    <div class="flex items-center gap-3 bg-zinc-50 p-1.5 rounded-lg border border-zinc-200">
+                        <input type="color" id="propColor" class="w-8 h-8 rounded-md shadow-sm border border-zinc-300">
+                        <span id="propColorHex" class="text-xs text-zinc-600 font-mono font-medium uppercase tracking-wider">#FFFFFF</span>
+                    </div>
+                </div>
+
+                <!-- Color de Text -->
+                <div id="textColorGroup">
+                    <label class="block text-sm font-semibold text-zinc-700 mb-2">Color de Lletra</label>
+                    <div class="flex items-center gap-3 bg-zinc-50 p-1.5 rounded-lg border border-zinc-200">
+                        <input type="color" id="propTextColor" class="w-8 h-8 rounded-md shadow-sm border border-zinc-300" value="#18181b">
+                        <span id="propTextColorHex" class="text-xs text-zinc-600 font-mono font-medium uppercase tracking-wider">#18181B</span>
+                    </div>
+                </div>
+
+                <!-- Gruix de Línia (connexions) -->
+                <div id="lineWidthGroup">
+                    <label class="block text-sm font-semibold text-zinc-700 mb-2">Gruix de Línia</label>
+                    <div class="flex items-center gap-4 bg-zinc-50 p-2.5 rounded-lg border border-zinc-200">
+                        <input type="range" id="propLineWidth" min="1" max="12" step="1" value="2" class="flex-1">
+                        <span id="propLineWidthVal" class="text-sm font-bold text-indigo-600 font-mono w-6 text-right">2</span>
+                    </div>
+                </div>
+
+                <!-- Format de Text i àrea de text -->
+                <div id="textFormatGroup">
+                    <label class="block text-sm font-semibold text-zinc-700 mb-2">Contingut del text</label>
+                    <textarea id="propText" rows="3" class="shadow-sm" placeholder="El teu text (Markdown)..."></textarea>
+                    <div class="flex gap-2 mt-2">
+                        <!-- Botons Neutres amb vora fina -->
+                        <button id="btnBold" class="flex-1 py-1.5 bg-transparent hover:bg-zinc-50 rounded-md text-sm font-bold border border-zinc-200 shadow-sm text-zinc-700 transition-colors">B</button>
+                        <button id="btnItalic" class="flex-1 py-1.5 bg-transparent hover:bg-zinc-50 rounded-md text-sm italic border border-zinc-200 shadow-sm text-zinc-700 transition-colors">I</button>
+                    </div>
+                </div>
+
+                <div class="border-t border-zinc-100 my-4"></div>
+                
+                <!-- Accions / Eliminar selecció (Botó de Perill) -->
+                <div class="mt-auto pt-4">
+                    <button id="btnDeleteSelected" class="w-full py-2.5 text-red-500 border border-red-200 rounded-lg bg-white hover:bg-red-50 transition-colors text-sm font-semibold flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-trash-can text-sm"></i>
+                        Eliminar Selecció
+                    </button>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- PEU DE PÀGINA DE CRÈDITS RESPONSIVE PER A MÒBILS I TAULETES (hidden lg:flex) -->
+    <footer class="lg:hidden bg-white border-t border-zinc-200 py-3 px-4 flex flex-col items-center justify-center z-10 flex-shrink-0 gap-1">
+        <span class="text-xs font-bold underline" style="color: #4b1c7a;">
+            <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener">Santiago Rigo Aguiló</a>
+        </span>
+        <div class="flex items-center gap-1.5 text-[11px]">
+            <span class="font-bold underline" style="color: #4b1c7a;">
+                <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener">CC BY-NC-ND 4.0</a>
+            </span>
+            <div class="flex items-center gap-0.5 text-xs text-black">
+                <i class="fa-brands fa-creative-commons"></i>
+                <i class="fa-brands fa-creative-commons-by"></i>
+                <i class="fa-brands fa-creative-commons-nc"></i>
+                <i class="fa-brands fa-creative-commons-nd"></i>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // --- Configuració i Constants ---
+        const canvas = document.getElementById('flowchartCanvas');
+        const ctx = canvas.getContext('2d');
+        const canvasContainer = document.getElementById('canvasContainer');
+        const inlineEditor = document.getElementById('inlineEditor');
+        const propertiesPanel = document.getElementById('propertiesPanel');
+        const zoomLevelDisplay = document.getElementById('zoomLevel');
+        const orthogonalToggle = document.getElementById('orthogonalToggle');
+
+        // Noves referències de modals d'Informació
+        const infoBtn = document.getElementById('infoBtn');
+        const infoModal = document.getElementById('infoModal');
+        const closeInfoBtn = document.getElementById('closeInfoBtn');
+        const closeInfoIconBtn = document.getElementById('closeInfoIconBtn');
+
+        const CONSTANTS = {
+            FONT_FAMILY: 'Inter, sans-serif',
+            FONT_SIZE: 14,
+            LINE_HEIGHT: 20,
+            MIN_W: 100,
+            MIN_H: 50,
+            CONN_RADIUS: 5,
+            DEF_SHAPE_COLOR: '#ffffff',
+            DEF_CONN_COLOR: '#71717a', // Zinc 500 per defecte
+            DEF_TEXT_COLOR: '#18181b', // Zinc 900
+            DEF_LINE_W: 2,
+            SNAP_DIST: 5
+        };
+
+        // --- Sistema de Toast Personalitzat (Evita l'ús d'alert natiu) ---
+        function showToast(msg, isError = false) {
+            const t = document.createElement('div');
+            t.textContent = msg;
+            t.style.cssText = `
+                position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+                background: ${isError ? '#ef4444' : '#18181b'}; color: white; padding: 10px 20px;
+                border-radius: 99px; z-index: 9999; font-size: 14px; font-weight: 500;
+                box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); opacity: 0; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            `;
+            document.body.appendChild(t);
+            requestAnimationFrame(() => {
+                t.style.opacity = '1';
+                t.style.transform = 'translateX(-50%) translateY(0)';
+            });
+            setTimeout(() => { 
+                t.style.opacity = '0'; 
+                t.style.transform = 'translateX(-50%) translateY(10px)';
+                setTimeout(() => t.remove(), 300); 
+            }, 3000);
+        }
+
+        // --- Estat de l'Aplicació ---
+        let appState = {
+            shapes: [],
+            connections: [],
+            nextShapeId: 1,
+            nextConnectionId: 1,
+            view: { scale: 1, panX: 0, panY: 0 }
+        };
+
+        let selectedItems = [];
+        let history = [];
+        let historyIndex = -1;
+        const MAX_HISTORY = 30;
+
+        // --- Estats d'interacció ---
+        let dragState = { isDragging: false, items: [], startMouseX: 0, startMouseY: 0, hasMoved: false };
+        let panState = { isPanning: false, startX: 0, startY: 0 };
+        let connectState = { active: false, fromShapeId: null, fromPointIndex: null, currentPos: null };
+        let selectBoxState = { active: false, startX: 0, startY: 0, currentX: 0, currentY: 0 };
+        let snapGuides = []; 
+        let useOrthogonal = true;
+
+        // --- Inicialització ---
+        function init() {
+            resizeCanvas();
+            loadStateFromLocal();
+            saveHistory(true); 
+            setupEvents();
+            updateUI();
+            redraw();
+        }
+
+        function resizeCanvas() {
+            const dpr = window.devicePixelRatio || 1;
+            const rect = canvasContainer.getBoundingClientRect();
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            redraw();
+        }
+
+        // --- Historial (Desfer/Refer) ---
+        function saveHistory(force = false) {
+            const stateStr = JSON.stringify(appState);
+            if (!force && historyIndex >= 0 && history[historyIndex] === stateStr) return;
+            if (historyIndex < history.length - 1) history = history.slice(0, historyIndex + 1);
+            
+            historyIndex++;
+            history.push(stateStr);
+            if (history.length > MAX_HISTORY) {
+                history.shift();
+                historyIndex = history.length - 1;
+            }
+            updateUndoRedoUI();
+            saveToLocal();
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                restoreStateFromHistory();
+            }
+        }
+        function redo() {
+            if (historyIndex < history.length - 1) {
+                historyIndex++;
+                restoreStateFromHistory();
+            }
+        }
+        function restoreStateFromHistory() {
+            closeInlineEditor();
+            appState = JSON.parse(history[historyIndex]);
+            selectedItems = [];
+            updateUI();
+            redraw();
+        }
+        function updateUndoRedoUI() {
+            document.getElementById('undoBtn').disabled = historyIndex <= 0;
+            document.getElementById('redoBtn').disabled = historyIndex >= history.length - 1;
+        }
+
+        // --- LocalStorage ---
+        function saveToLocal() { localStorage.setItem('flux_v3_state', JSON.stringify(appState)); }
+        function loadStateFromLocal() {
+            const saved = localStorage.getItem('flux_v3_state');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (parsed.shapes && parsed.connections) appState = parsed;
+                } catch(e) { console.error("Error carregant estat", e); }
+            }
+            appState.nextShapeId = (appState.shapes.length > 0 ? Math.max(...appState.shapes.map(s => s.id)) : 0) + 1;
+            appState.nextConnectionId = (appState.connections.length > 0 ? Math.max(...appState.connections.map(c => c.id)) : 0) + 1;
+        }
+
+        // --- Transformacions (Món <-> Pantalla) ---
+        function screenToWorld(x, y) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (x - rect.left - appState.view.panX) / appState.view.scale,
+                y: (y - rect.top - appState.view.panY) / appState.view.scale
+            };
+        }
+        function worldToScreen(x, y) {
+            const rect = canvas.getBoundingClientRect();
+            return {
+                x: (x * appState.view.scale) + appState.view.panX + rect.left,
+                y: (y * appState.view.scale) + appState.view.panY + rect.top
+            };
+        }
+        function worldToContainer(x, y) {
+            return {
+                x: (x * appState.view.scale) + appState.view.panX,
+                y: (y * appState.view.scale) + appState.view.panY
+            };
+        }
+
+        // --- STREAMING_CHUNK: Creant mètodes de dibuix per canves i elements markdown ---
+        // --- Dibuix d'Elements al Canvas ---
+        function redraw() {
+            ctx.save();
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.restore();
+
+            ctx.save();
+            ctx.translate(appState.view.panX, appState.view.panY);
+            ctx.scale(appState.view.scale, appState.view.scale);
+
+            appState.connections.forEach(drawConnection);
+            appState.shapes.forEach(drawShape);
+            
+            drawSelectionHighlights();
+            drawConnectionPoints();
+            if (connectState.active && connectState.currentPos) drawConnectingLine();
+            if (selectBoxState.active) drawSelectionBox();
+            if (snapGuides.length > 0) drawSnapGuides();
+
+            ctx.restore();
+            zoomLevelDisplay.textContent = Math.round(appState.view.scale * 100) + '%';
+        }
+
+        function drawShape(s) {
+            ctx.save();
+            ctx.fillStyle = s.color || CONSTANTS.DEF_SHAPE_COLOR;
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 2 / appState.view.scale;
+            ctx.lineJoin = 'round';
+
+            if (s.type === 'brace') {
+                drawBraceShape(s);
+                ctx.restore(); return;
+            }
+            
+            ctx.shadowColor = 'rgba(0,0,0,0.06)';
+            ctx.shadowBlur = 6 / appState.view.scale;
+            ctx.shadowOffsetY = 3 / appState.view.scale;
+
+            ctx.beginPath();
+            switch (s.type) {
+                case 'rectangle': 
+                    ctx.roundRect(s.x, s.y, s.w, s.h, 6 / appState.view.scale); 
+                    break;
+                case 'diamond': 
+                    ctx.moveTo(s.x + s.w/2, s.y); ctx.lineTo(s.x + s.w, s.y + s.h/2); 
+                    ctx.lineTo(s.x + s.w/2, s.y + s.h); ctx.lineTo(s.x, s.y + s.h/2); 
+                    ctx.closePath(); break;
+                case 'oval': 
+                    ctx.ellipse(s.x + s.w/2, s.y + s.h/2, s.w/2, s.h/2, 0, 0, 2*Math.PI); 
+                    break;
+                case 'parallelogram': 
+                    const skew = s.h * 0.25; 
+                    ctx.moveTo(s.x + skew, s.y); ctx.lineTo(s.x + s.w, s.y); 
+                    ctx.lineTo(s.x + s.w - skew, s.y + s.h); ctx.lineTo(s.x, s.y + s.h); 
+                    ctx.closePath(); break;
+            }
+            ctx.fill();
+            ctx.shadowColor = 'transparent';
+            ctx.stroke();
+            
+            drawMarkdownText(s.text, s.x + s.w/2, s.y + s.h/2, s.w - 20, CONSTANTS.FONT_SIZE, s.textColor);
+            ctx.restore();
+        }
+
+        function drawBraceShape(s) {
+            const lw = 2 / appState.view.scale;
+            const braceW = 16 / appState.view.scale;
+            const r = Math.min(s.h / 4, 10 / appState.view.scale);
+
+            ctx.shadowColor = 'rgba(0,0,0,0.04)';
+            ctx.shadowBlur = 4 / appState.view.scale;
+            ctx.shadowOffsetY = 2 / appState.view.scale;
+
+            ctx.strokeStyle = s.color !== CONSTANTS.DEF_SHAPE_COLOR ? s.color : '#000000';
+            ctx.lineWidth = lw;
+            ctx.lineJoin = 'round';
+            ctx.lineCap = 'round';
+
+            const x = s.x, y = s.y, h = s.h, midY = y + h / 2;
+
+            ctx.beginPath();
+            ctx.moveTo(x + braceW, y);
+            ctx.bezierCurveTo(x + braceW - r, y, x, y + r, x, y + h/4);
+            ctx.bezierCurveTo(x, midY - r, x - r, midY, x - braceW * 0.8, midY); 
+            ctx.bezierCurveTo(x - r, midY, x, midY + r, x, y + h * 3/4);
+            ctx.bezierCurveTo(x, y + h - r, x + braceW - r, y + h, x + braceW, y + h);
+            ctx.shadowColor = 'transparent';
+            ctx.stroke();
+
+            const textX = s.x + braceW + 10 / appState.view.scale;
+            const textY = s.y + s.h / 2;
+            drawMarkdownText(s.text, textX, textY, s.w - braceW - 12 / appState.view.scale, CONSTANTS.FONT_SIZE, s.textColor, 'left');
+        }
+
+        function drawMarkdownText(text, cx, cy, maxW, baseSize, textColor, align = 'center') {
+            if (!text) return;
+            const size = Math.max(8, baseSize / appState.view.scale);
+            const lh = size * 1.35;
+            ctx.textBaseline = 'middle';
+            ctx.fillStyle = textColor || CONSTANTS.DEF_TEXT_COLOR;
+
+            const lines = text.split('\n');
+            let currentY = cy - ((lines.length - 1) * lh) / 2;
+
+            lines.forEach(line => {
+                const parts = parseMarkdownLine(line);
+                let totalW = 0;
+                parts.forEach(p => {
+                    ctx.font = `${p.italic ? 'italic ' : ''}${p.bold ? '600 ' : '400 '}${size}px ${CONSTANTS.FONT_FAMILY}`;
+                    p.width = ctx.measureText(p.text).width;
+                    totalW += p.width;
+                });
+
+                let currentX = align === 'left' ? cx : cx - totalW / 2;
+
+                parts.forEach(p => {
+                    ctx.font = `${p.italic ? 'italic ' : ''}${p.bold ? '600 ' : '400 '}${size}px ${CONSTANTS.FONT_FAMILY}`;
+                    if (align === 'left') {
+                        ctx.textAlign = 'left'; ctx.fillText(p.text, currentX, currentY);
+                    } else {
+                        ctx.textAlign = 'center'; ctx.fillText(p.text, currentX + p.width / 2, currentY);
+                    }
+                    currentX += p.width;
+                });
+                currentY += lh;
+            });
+        }
+
+        function parseMarkdownLine(line) {
+            let parts = []; let isBold = false; let isItalic = false; let curr = '';
+            for(let i=0; i<line.length; i++) {
+                if (line.startsWith('**', i)) {
+                    if(curr) parts.push({text: curr, bold: isBold, italic: isItalic});
+                    isBold = !isBold; curr = ''; i++;
+                } else if (line[i] === '*' && (i===0 || line[i-1]!=='\\')) {
+                    if(curr) parts.push({text: curr, bold: isBold, italic: isItalic});
+                    isItalic = !isItalic; curr = '';
+                } else { curr += line[i]; }
+            }
+            if(curr) parts.push({text: curr, bold: isBold, italic: isItalic});
+            return parts;
+        }
+
+        // --- STREAMING_CHUNK: Calculant l'algorisme de rutes de connexió ortogonals ---
+        // --- Algorisme de Connexions ---
+        function getOrthogonalPath(p1, dir1, p2, dir2) {
+            let pts = [p1];
+            let midX = (p1.x + p2.x) / 2; let midY = (p1.y + p2.y) / 2;
+            const isHoriz1 = dir1 === 1 || dir1 === 3;
+            const isHoriz2 = dir2 === 1 || dir2 === 3;
+
+            if (isHoriz1 && isHoriz2) { pts.push({x: midX, y: p1.y}); pts.push({x: midX, y: p2.y}); }
+            else if (!isHoriz1 && !isHoriz2) { pts.push({x: p1.x, y: midY}); pts.push({x: p2.x, y: midY}); }
+            else if (isHoriz1 && !isHoriz2) { pts.push({x: p2.x, y: p1.y}); }
+            else { pts.push({x: p1.x, y: p2.y}); }
+            pts.push(p2); return pts;
+        }
+
+        function drawConnection(c) {
+            const s1 = appState.shapes.find(s => s.id === c.fromShapeId);
+            const s2 = appState.shapes.find(s => s.id === c.toShapeId);
+            if (!s1 || !s2) return;
+
+            const p1 = getConnPointCoords(s1, c.fromPointIndex);
+            const p2 = getConnPointCoords(s2, c.toPointIndex);
+            
+            ctx.save();
+            const color = c.color || CONSTANTS.DEF_CONN_COLOR;
+            const lw = (c.lineWidth || CONSTANTS.DEF_LINE_W) / appState.view.scale;
+            
+            ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineJoin = 'round';
+            ctx.beginPath();
+            let path = useOrthogonal ? getOrthogonalPath(p1, c.fromPointIndex, p2, c.toPointIndex) : [p1, p2];
+
+            ctx.moveTo(path[0].x, path[0].y);
+            for(let i=1; i<path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+            ctx.stroke();
+
+            const lastSegStart = path[path.length - 2];
+            drawArrowhead(lastSegStart, p2, color, lw * appState.view.scale);
+
+            if (c.text) {
+                let midPt = path.length === 2 ? {x: (p1.x+p2.x)/2, y:(p1.y+p2.y)/2} : path[Math.floor(path.length/2)];
+                if(path.length === 4) midPt = {x: (path[1].x + path[2].x)/2, y: (path[1].y + path[2].y)/2};
+                
+                const lines = c.text.split('\n');
+                const size = Math.max(8, (CONSTANTS.FONT_SIZE - 2) / appState.view.scale);
+                ctx.font = `500 ${size}px ${CONSTANTS.FONT_FAMILY}`;
+                let maxW = 0;
+                lines.forEach(l => maxW = Math.max(maxW, ctx.measureText(l.replace(/\*/g,'')).width));
+                const pad = 6/appState.view.scale; 
+                
+                ctx.fillStyle = 'rgba(255,255,255,0.9)';
+                ctx.beginPath();
+                ctx.roundRect(midPt.x - maxW/2 - pad, midPt.y - (lines.length * size * 1.2)/2 - pad, maxW + pad*2, (lines.length * size * 1.2) + pad*2, 4/appState.view.scale);
+                ctx.fill();
+                drawMarkdownText(c.text, midPt.x, midPt.y, Infinity, CONSTANTS.FONT_SIZE - 2);
+            }
+            ctx.restore();
+        }
+
+        function drawArrowhead(from, to, color, lw) {
+            const angle = Math.atan2(to.y - from.y, to.x - from.x);
+            const len = (10 + lw) / appState.view.scale; 
+            const wFact = Math.PI / 7;
+            ctx.save(); ctx.fillStyle = color; ctx.beginPath();
+            ctx.moveTo(to.x, to.y);
+            ctx.lineTo(to.x - len * Math.cos(angle - wFact), to.y - len * Math.sin(angle - wFact));
+            ctx.lineTo(to.x - len * Math.cos(angle + wFact), to.y - len * Math.sin(angle + wFact));
+            ctx.closePath(); ctx.fill(); ctx.restore();
+        }
+
+        function getConnPoints(s) {
+            if (s.type === 'brace') {
+                const braceW = 16;
+                return [
+                    { x: s.x + s.w / 2, y: s.y,          dir: 0 },
+                    { x: s.x + s.w,     y: s.y + s.h / 2, dir: 1 },
+                    { x: s.x + s.w / 2, y: s.y + s.h,    dir: 2 },
+                    { x: s.x - braceW * 0.8, y: s.y + s.h / 2, dir: 3 }
+                ];
+            }
+            return [
+                { x: s.x + s.w/2, y: s.y, dir: 0 }, { x: s.x + s.w, y: s.y + s.h/2, dir: 1 },
+                { x: s.x + s.w/2, y: s.y + s.h, dir: 2 }, { x: s.x, y: s.y + s.h/2, dir: 3 }
+            ];
+        }
+        function getConnPointCoords(s, i) { return getConnPoints(s)[i]; }
+
+        function drawSelectionHighlights() {
+            selectedItems.forEach(sel => {
+                ctx.save();
+                if (sel.type === 'shape') {
+                    const s = sel.item;
+                    ctx.strokeStyle = '#4f46e5'; 
+                    ctx.lineWidth = 2.5 / appState.view.scale;
+                    ctx.setLineDash([6 / appState.view.scale, 6 / appState.view.scale]);
+                    const pad = 6 / appState.view.scale;
+                    ctx.strokeRect(s.x - pad, s.y - pad, s.w + pad*2, s.h + pad*2);
+                } else if (sel.type === 'connection') {
+                    const c = sel.item;
+                    const s1 = appState.shapes.find(s => s.id === c.fromShapeId);
+                    const s2 = appState.shapes.find(s => s.id === c.toShapeId);
+                    if(s1 && s2) {
+                        const p1 = getConnPointCoords(s1, c.fromPointIndex);
+                        const p2 = getConnPointCoords(s2, c.toPointIndex);
+                        let path = useOrthogonal ? getOrthogonalPath(p1, c.fromPointIndex, p2, c.toPointIndex) : [p1, p2];
+                        ctx.strokeStyle = 'rgba(79, 70, 229, 0.4)'; 
+                        ctx.lineWidth = ((c.lineWidth || CONSTANTS.DEF_LINE_W) + 8) / appState.view.scale;
+                        ctx.beginPath();
+                        ctx.moveTo(path[0].x, path[0].y);
+                        for(let i=1; i<path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+                        ctx.stroke();
+                    }
+                }
+                ctx.restore();
+            });
+        }
+
+        function drawConnectionPoints() {
+            ctx.save();
+            const r = CONSTANTS.CONN_RADIUS / appState.view.scale;
+            const drawPt = (p, color) => {
+                ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 2*Math.PI);
+                ctx.fillStyle = color; ctx.fill();
+                ctx.strokeStyle = '#fff'; ctx.lineWidth = 2/appState.view.scale; ctx.stroke();
+                ctx.shadowColor = 'rgba(0,0,0,0.2)'; ctx.shadowBlur = 4/appState.view.scale;
+            };
+
+            if (connectState.active && connectState.currentPos) {
+                const under = getShapeAt(connectState.currentPos.x, connectState.currentPos.y);
+                if (under && under.id !== connectState.fromShapeId) {
+                    getConnPoints(under).forEach(p => drawPt(p, '#22c55e'));
+                }
+                const origin = appState.shapes.find(s=>s.id === connectState.fromShapeId);
+                if(origin) drawPt(getConnPointCoords(origin, connectState.fromPointIndex), '#4f46e5');
+            } else if (selectedItems.length === 1 && selectedItems[0].type === 'shape') {
+                getConnPoints(selectedItems[0].item).forEach(p => drawPt(p, '#4f46e5'));
+            }
+            ctx.restore();
+        }
+
+        function drawConnectingLine() {
+            const origin = appState.shapes.find(s=>s.id === connectState.fromShapeId);
+            if(!origin) return;
+            const p1 = getConnPointCoords(origin, connectState.fromPointIndex);
+            ctx.save(); ctx.strokeStyle = '#22c55e'; ctx.lineWidth = 2.5 / appState.view.scale;
+            ctx.setLineDash([5/appState.view.scale, 5/appState.view.scale]); ctx.beginPath();
+            
+            let path = [p1, connectState.currentPos];
+            if (useOrthogonal) {
+                const dx = connectState.currentPos.x - p1.x, dy = connectState.currentPos.y - p1.y;
+                let targetDir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 3 : 1) : (dy > 0 ? 0 : 2);
+                path = getOrthogonalPath(p1, connectState.fromPointIndex, connectState.currentPos, targetDir);
+            }
+            ctx.moveTo(path[0].x, path[0].y);
+            for(let i=1; i<path.length; i++) ctx.lineTo(path[i].x, path[i].y);
+            ctx.stroke(); ctx.restore();
+        }
+
+        function drawSelectionBox() {
+            ctx.save();
+            ctx.fillStyle = 'rgba(79, 70, 229, 0.1)';
+            ctx.strokeStyle = '#4f46e5';
+            ctx.lineWidth = 1 / appState.view.scale;
+            const x = Math.min(selectBoxState.startX, selectBoxState.currentX);
+            const y = Math.min(selectBoxState.startY, selectBoxState.currentY);
+            const w = Math.abs(selectBoxState.startX - selectBoxState.currentX);
+            const h = Math.abs(selectBoxState.startY - selectBoxState.currentY);
+            ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
+            ctx.restore();
+        }
+
+        function drawSnapGuides() {
+            ctx.save(); ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 1 / appState.view.scale;
+            ctx.setLineDash([4/appState.view.scale, 4/appState.view.scale]); ctx.beginPath();
+            snapGuides.forEach(g => { ctx.moveTo(g.x1, g.y1); ctx.lineTo(g.x2, g.y2); });
+            ctx.stroke(); ctx.restore();
+        }
+
+        // --- Core Funcs ---
+        function getShapeAt(x, y) {
+            for (let i = appState.shapes.length - 1; i >= 0; i--) {
+                const s = appState.shapes[i];
+                if (x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h) return s;
+            }
+            return null;
+        }
+        function getConnPtAt(s, x, y) {
+            const pts = getConnPoints(s);
+            const rSq = Math.pow(CONSTANTS.CONN_RADIUS * 2.5 / appState.view.scale, 2);
+            for(let i=0; i<pts.length; i++) {
+                if(Math.pow(x - pts[i].x, 2) + Math.pow(y - pts[i].y, 2) <= rSq) return i;
+            }
+            return -1;
+        }
+        function getConnAt(x, y) {
+            const tol = 6 / appState.view.scale;
+            for (const c of appState.connections) {
+                const s1 = appState.shapes.find(s => s.id === c.fromShapeId);
+                const s2 = appState.shapes.find(s => s.id === c.toShapeId);
+                if(!s1 || !s2) continue;
+                const p1 = getConnPointCoords(s1, c.fromPointIndex);
+                const p2 = getConnPointCoords(s2, c.toPointIndex);
+                const path = useOrthogonal ? getOrthogonalPath(p1, c.fromPointIndex, p2, c.toPointIndex) : [p1, p2];
+                for(let i=0; i<path.length-1; i++) {
+                    if (distToSegmentSq(x, y, path[i].x, path[i].y, path[i+1].x, path[i+1].y) <= tol*tol) return c;
+                }
+            }
+            return null;
+        }
+        function distToSegmentSq(px, py, x1, y1, x2, y2) {
+            let l2 = Math.pow(x1 - x2, 2) + Math.pow(y1 - y2, 2);
+            if (l2 === 0) return Math.pow(px - x1, 2) + Math.pow(py - y1, 2);
+            let t = ((px - x1) * (x2 - x1) + (py - y1) * (y2 - y1)) / l2;
+            t = Math.max(0, Math.min(1, t));
+            return Math.pow(px - (x1 + t * (x2 - x1)), 2) + Math.pow(py - (y1 + t * (y2 - y1)), 2);
+        }
+        function getItemsInBox(x1, y1, x2, y2) {
+            const minX = Math.min(x1, x2), maxX = Math.max(x1, x2), minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+            let result = [];
+            appState.shapes.forEach(s => {
+                if (s.x < maxX && s.x + s.w > minX && s.y < maxY && s.y + s.h > minY) result.push({type: 'shape', item: s});
+            });
+            return result;
+        }
+        function getItemAtScreenCoords(wx, wy) {
+            const shapesToCheckConn = selectedItems.length === 1 && selectedItems[0].type === 'shape' ? [selectedItems[0].item] : appState.shapes;
+            for (const shp of shapesToCheckConn) {
+                const ptIdx = getConnPtAt(shp, wx, wy);
+                if (ptIdx !== -1) return {type: 'connPt', shape: shp, ptIdx};
+            }
+            const shape = getShapeAt(wx, wy);
+            if (shape) return {type: 'shape', item: shape};
+            const conn = getConnAt(wx, wy);
+            if (conn) return {type: 'connection', item: conn};
+            return null;
+        }
+
+        // --- STREAMING_CHUNK: Definint les accions de creació de formes i snapping ---
+        // --- Accions ---
+        function createShape(type, x, y) {
+            const s = {
+                id: appState.nextShapeId++, type, x, y, w: CONSTANTS.MIN_W, h: CONSTANTS.MIN_H,
+                color: CONSTANTS.DEF_SHAPE_COLOR, textColor: CONSTANTS.DEF_TEXT_COLOR,
+                text: type === 'text' ? 'Nou Text' : ''
+            };
+            appState.shapes.push(s); selectItem(s, 'shape'); saveHistory(); redraw();
+        }
+        function deleteSelected() {
+            if (selectedItems.length === 0) return;
+            const shapeIds = selectedItems.filter(s => s.type==='shape').map(s => s.item.id);
+            const connIds = selectedItems.filter(s => s.type==='connection').map(s => s.item.id);
+            appState.shapes = appState.shapes.filter(s => !shapeIds.includes(s.id));
+            appState.connections = appState.connections.filter(c => !connIds.includes(c.id) && !shapeIds.includes(c.fromShapeId) && !shapeIds.includes(c.toShapeId));
+            selectedItems = []; updateUI(); saveHistory(); redraw(); closeInlineEditor();
+        }
+
+        function calculateSnapping() {
+            snapGuides = [];
+            if(selectedItems.length === 0 || !dragState.isDragging) return;
+            const b = getSelectionBoundingBox(); if(!b) return;
+
+            const cX = b.x + b.w/2, cY = b.y + b.h/2;
+            const thresh = CONSTANTS.SNAP_DIST / appState.view.scale;
+            let snappedX = false, snappedY = false, deltaX = 0, deltaY = 0;
+            const unselectedShapes = appState.shapes.filter(s => !selectedItems.find(si => si.item.id === s.id));
+
+            for (const target of unselectedShapes) {
+                const tcX = target.x + target.w/2, tcY = target.y + target.h/2;
+                if (!snappedX && Math.abs(cX - tcX) < thresh) {
+                    deltaX = tcX - cX; snappedX = true;
+                    snapGuides.push({x1: tcX, y1: Math.min(b.y, target.y) - 20, x2: tcX, y2: Math.max(b.y+b.h, target.y+target.h) + 20});
+                }
+                if (!snappedY && Math.abs(cY - tcY) < thresh) {
+                    deltaY = tcY - cY; snappedY = true;
+                    snapGuides.push({x1: Math.min(b.x, target.x) - 20, y1: tcY, x2: Math.max(b.x+b.w, target.x+target.w) + 20, y2: tcY});
+                }
+            }
+            if(snappedX || snappedY) {
+                dragState.items.forEach(dItem => {
+                    if (snappedX) dItem.item.x += deltaX;
+                    if (snappedY) dItem.item.y += deltaY;
+                });
+            }
+        }
+        function getSelectionBoundingBox() {
+            const shapes = selectedItems.filter(s => s.type === 'shape').map(s => s.item);
+            if(shapes.length === 0) return null;
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            shapes.forEach(s => {
+                minX = Math.min(minX, s.x); minY = Math.min(minY, s.y);
+                maxX = Math.max(maxX, s.x + s.w); maxY = Math.max(maxY, s.y + s.h);
+            });
+            return {x: minX, y: minY, w: maxX - minX, h: maxY - minY};
+        }
+
+        // --- STREAMING_CHUNK: Configurant mètodes d'escolta d'esdeveniments per ratolí i gestos tactils ---
+        // --- Esdeveniments ---
+        function setupEvents() {
+            // Gestió interactiva del menú de formes mòbil (Hamburger)
+            const menuToggleBtn = document.getElementById('menuToggleBtn');
+            const shapesSidebar = document.querySelector('.shapes-sidebar');
+            if (menuToggleBtn && shapesSidebar) {
+                menuToggleBtn.addEventListener('click', () => {
+                    shapesSidebar.classList.toggle('mobile-hide');
+                });
+            }
+
+            // Controls dels Modals de Informació (Noves interaccions)
+            infoBtn.addEventListener('click', () => {
+                infoModal.classList.remove('hidden');
+            });
+            const hideInfoModal = () => infoModal.classList.add('hidden');
+            closeInfoBtn.addEventListener('click', hideInfoModal);
+            closeInfoIconBtn.addEventListener('click', hideInfoModal);
+
+            canvasContainer.addEventListener('touchstart', handleTouchStart, { passive: false });
+            canvasContainer.addEventListener('touchmove', handleTouchMove, { passive: false });
+            canvasContainer.addEventListener('touchend', handleTouchEnd, { passive: false });
+            canvasContainer.addEventListener('mousedown', handleMouseDown);
+            window.addEventListener('mousemove', handleMouseMove);
+            window.addEventListener('mouseup', handleMouseUp);
+            canvasContainer.addEventListener('wheel', handleWheel, {passive: false});
+            canvasContainer.addEventListener('dblclick', handleDblClick);
+            canvasContainer.addEventListener('keydown', handleKeyDown);
+
+            document.querySelectorAll('.draggable-shape').forEach(d => {
+                d.addEventListener('dragstart', (e) => { e.dataTransfer.setData('shapeType', d.dataset.type); });
+            });
+            canvasContainer.addEventListener('dragover', e => e.preventDefault());
+            canvasContainer.addEventListener('drop', handleDrop);
+
+            document.getElementById('undoBtn').addEventListener('click', undo);
+            document.getElementById('redoBtn').addEventListener('click', redo);
+            
+            // Modal Custom de Confirmació de Neteja
+            document.getElementById('clearBtn').addEventListener('click', () => {
+                document.getElementById('customConfirm').classList.remove('hidden');
+            });
+            document.getElementById('cancelClearBtn').addEventListener('click', () => {
+                document.getElementById('customConfirm').classList.add('hidden');
+            });
+            document.getElementById('confirmClearBtn').addEventListener('click', () => {
+                document.getElementById('customConfirm').classList.add('hidden');
+                appState.shapes = []; appState.connections = []; selectedItems = [];
+                saveHistory(true); redraw(); updateUI();
+                showToast("Llenç esborrat amb èxit");
+            });
+
+            orthogonalToggle.addEventListener('change', (e) => { useOrthogonal = e.target.checked; redraw(); });
+            document.getElementById('closePropPanel').addEventListener('click', () => { selectedItems = []; updateUI(); redraw(); });
+
+            document.querySelectorAll('.draggable-shape').forEach(d => {
+                d.addEventListener('click', () => {
+                    if (window.innerWidth > 640) return;
+                    const rect = canvasContainer.getBoundingClientRect();
+                    const wPos = screenToWorld(rect.left + rect.width/2, rect.top + rect.height/2);
+                    createShape(d.dataset.type, wPos.x - CONSTANTS.MIN_W/2, wPos.y - CONSTANTS.MIN_H/2);
+                });
+            });
+            
+            document.getElementById('propColor').addEventListener('input', (e) => applyPropToSelection('color', e.target.value));
+            document.getElementById('propTextColor').addEventListener('input', (e) => {
+                applyPropToSelection('textColor', e.target.value);
+                document.getElementById('propTextColorHex').textContent = e.target.value.toUpperCase();
+            });
+            document.getElementById('propLineWidth').addEventListener('input', (e) => {
+                const val = parseInt(e.target.value); document.getElementById('propLineWidthVal').textContent = val;
+                applyPropToSelection('lineWidth', val);
+            });
+            document.getElementById('propText').addEventListener('input', (e) => { applyPropToSelection('text', e.target.value); autoResizeShapes(); });
+            document.getElementById('btnBold').addEventListener('click', () => toggleTextFormat('**'));
+            document.getElementById('btnItalic').addEventListener('click', () => toggleTextFormat('*'));
+            document.getElementById('btnDeleteSelected').addEventListener('click', deleteSelected);
+
+            // Modal d'Exportació Custom
+            document.getElementById('exportJsonBtn').addEventListener('click', () => {
+                document.getElementById('exportModal').classList.remove('hidden');
+                const input = document.getElementById('exportFilenameInput');
+                input.focus();
+                input.select();
+            });
+            
+            document.getElementById('cancelExportBtn').addEventListener('click', () => {
+                document.getElementById('exportModal').classList.add('hidden');
+            });
+            
+            document.getElementById('confirmExportBtn').addEventListener('click', () => {
+                const filename = document.getElementById('exportFilenameInput').value.trim() || 'diagrama';
+                exportData(filename);
+                document.getElementById('exportModal').classList.add('hidden');
+            });
+
+            document.getElementById('exportFilenameInput').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('confirmExportBtn').click();
+                }
+            });
+
+            document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
+            document.getElementById('importFile').addEventListener('change', importJson);
+
+            inlineEditor.addEventListener('blur', saveInlineEditor);
+            inlineEditor.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); inlineEditor.blur(); } });
+            window.addEventListener('resize', resizeCanvas);
+        }
+
+        let _touch = { lastTap: 0, pinchDist: null, pinchMidWorld: null, panning: false, panStart: null, dragging: false };
+        function getTouchPos(touch) { return { x: touch.clientX, y: touch.clientY }; }
+        function touchDist(t1, t2) { return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY); }
+        function touchMid(t1, t2) { return { x: (t1.clientX + t2.clientX) / 2, y: (t1.clientY + t2.clientY) / 2 }; }
+
+        function handleTouchStart(e) {
+            e.preventDefault(); closeInlineEditor(); canvasContainer.focus();
+            if (e.touches.length === 2) {
+                _touch.pinchDist = touchDist(e.touches[0], e.touches[1]);
+                _touch.pinchMidWorld = screenToWorld(touchMid(e.touches[0], e.touches[1]).x, touchMid(e.touches[0], e.touches[1]).y);
+                _touch.panning = false; dragState.isDragging = false; return;
+            }
+            if (e.touches.length === 1) {
+                const t = e.touches[0]; const wPos = screenToWorld(t.clientX, t.clientY);
+                const target = getItemAtScreenCoords(wPos.x, wPos.y);
+                const now = Date.now(); const dt = now - _touch.lastTap; _touch.lastTap = now;
+                if (dt < 300 && dt > 0) { if (target && (target.type === 'shape' || target.type === 'connection')) openInlineEditor(target); return; }
+                if (target) {
+                    if (target.type === 'connPt') { connectState = { active: true, fromShapeId: target.shape.id, fromPointIndex: target.ptIdx, currentPos: wPos }; } 
+                    else {
+                        if (!isItemSelected(target.item)) selectItem(target.item, target.type);
+                        if (target.type === 'shape') {
+                            const shapesToDrag = selectedItems.filter(si => si.type === 'shape');
+                            if (shapesToDrag.length > 0) {
+                                dragState = { isDragging: true, hasMoved: false, startMouseX: wPos.x, startMouseY: wPos.y, items: shapesToDrag.map(si => ({item: si.item, startX: si.item.x, startY: si.item.y})) };
+                                _touch.dragging = true;
+                            }
+                        }
+                    }
+                } else { _touch.panning = true; _touch.panStart = { x: t.clientX - appState.view.panX, y: t.clientY - appState.view.panY }; selectedItems = []; updateUI(); }
+                redraw();
+            }
+        }
+
+        // --- STREAMING_CHUNK: Implementant accions de moviment per tactils i pessics d'escala ---
+        function handleTouchMove(e) {
+            e.preventDefault();
+            if (e.touches.length === 2) {
+                const newDist = touchDist(e.touches[0], e.touches[1]);
+                if (_touch.pinchDist && _touch.pinchMidWorld) {
+                    const ratio = newDist / _touch.pinchDist;
+                    let newScale = Math.max(0.1, Math.min(appState.view.scale * ratio, 5));
+                    const mid = touchMid(e.touches[0], e.touches[1]); const rect = canvas.getBoundingClientRect();
+                    appState.view.panX = mid.x - rect.left - _touch.pinchMidWorld.x * newScale;
+                    appState.view.panY = mid.y - rect.top  - _touch.pinchMidWorld.y * newScale;
+                    appState.view.scale = newScale; _touch.pinchDist = newDist; redraw();
+                } return;
+            }
+            if (e.touches.length === 1) {
+                const t = e.touches[0]; const wPos = screenToWorld(t.clientX, t.clientY);
+                if (connectState.active) { connectState.currentPos = wPos; redraw(); } 
+                else if (dragState.isDragging) {
+                    dragState.hasMoved = true;
+                    dragState.items.forEach(d => { d.item.x = d.startX + (wPos.x - dragState.startMouseX); d.item.y = d.startY + (wPos.y - dragState.startMouseY); });
+                    calculateSnapping(); redraw();
+                } 
+                else if (_touch.panning && _touch.panStart) { appState.view.panX = t.clientX - _touch.panStart.x; appState.view.panY = t.clientY - _touch.panStart.y; redraw(); }
+            }
+        }
+
+        function handleTouchEnd(e) {
+            e.preventDefault();
+            if (e.touches.length === 0) { _touch.pinchDist = null; _touch.pinchMidWorld = null; }
+            if (connectState.active && e.changedTouches.length > 0) {
+                const t = e.changedTouches[0]; const wPos = screenToWorld(t.clientX, t.clientY);
+                const targetShape = getShapeAt(wPos.x, wPos.y);
+                if (targetShape && targetShape.id !== connectState.fromShapeId) {
+                    let closestPtIdx = 0, minD = Infinity;
+                    getConnPoints(targetShape).forEach((p, i) => { const d = Math.pow(wPos.x - p.x, 2) + Math.pow(wPos.y - p.y, 2); if (d < minD) { minD = d; closestPtIdx = i; } });
+                    const duplicate = appState.connections.find(c => c.fromShapeId === connectState.fromShapeId && c.fromPointIndex === connectState.fromPointIndex && c.toShapeId === targetShape.id && c.toPointIndex === closestPtIdx);
+                    if (!duplicate) {
+                        appState.connections.push({ id: appState.nextConnectionId++, fromShapeId: connectState.fromShapeId, fromPointIndex: connectState.fromPointIndex, toShapeId: targetShape.id, toPointIndex: closestPtIdx, color: CONSTANTS.DEF_CONN_COLOR, lineWidth: CONSTANTS.DEF_LINE_W, text: '' });
+                        saveHistory();
+                    }
+                }
+                connectState = { active: false, fromShapeId: null, fromPointIndex: null, currentPos: null }; redraw();
+            }
+            if (dragState.isDragging) { if (dragState.hasMoved) saveHistory(); dragState.isDragging = false; _touch.dragging = false; snapGuides = []; redraw(); }
+            _touch.panning = false;
+        }
+
+        function handleMouseDown(e) {
+            if (e.target === inlineEditor) return;
+            closeInlineEditor(); canvasContainer.focus(); 
+            if(e.button !== 0) return; 
+            const wPos = screenToWorld(e.clientX, e.clientY);
+            const target = getItemAtScreenCoords(wPos.x, wPos.y);
+
+            if (target) {
+                if (target.type === 'connPt') { connectState = { active: true, fromShapeId: target.shape.id, fromPointIndex: target.ptIdx, currentPos: wPos }; } 
+                else {
+                    if (e.shiftKey || e.ctrlKey || e.metaKey) toggleSelection(target.item, target.type);
+                    else if (!isItemSelected(target.item)) selectItem(target.item, target.type);
+                    
+                    if (target.type === 'shape') {
+                        const shapesToDrag = selectedItems.filter(si => si.type === 'shape');
+                        if (shapesToDrag.length > 0) dragState = { isDragging: true, hasMoved: false, startMouseX: wPos.x, startMouseY: wPos.y, items: shapesToDrag.map(si => ({item: si.item, startX: si.item.x, startY: si.item.y})) };
+                    }
+                }
+            } else {
+                if (e.altKey) panState = { isPanning: true, startX: e.clientX - appState.view.panX, startY: e.clientY - appState.view.panY };
+                else { if (!e.shiftKey) { selectedItems = []; updateUI(); } selectBoxState = { active: true, startX: wPos.x, startY: wPos.y, currentX: wPos.x, currentY: wPos.y }; }
+            }
+            redraw();
+        }
+
+        function handleMouseMove(e) {
+            const wPos = screenToWorld(e.clientX, e.clientY);
+            const target = getItemAtScreenCoords(wPos.x, wPos.y);
+            if (dragState.isDragging || panState.isPanning) canvasContainer.style.cursor = 'grabbing';
+            else if (target && target.type === 'connPt') canvasContainer.style.cursor = 'crosshair';
+            else if (target && target.type === 'shape') canvasContainer.style.cursor = 'move';
+            else canvasContainer.style.cursor = 'grab';
+
+            if (connectState.active) { connectState.currentPos = wPos; redraw(); } 
+            else if (dragState.isDragging) {
+                dragState.hasMoved = true;
+                dragState.items.forEach(d => { d.item.x = d.startX + (wPos.x - dragState.startMouseX); d.item.y = d.startY + (wPos.y - dragState.startMouseY); });
+                calculateSnapping(); redraw();
+            } 
+            else if (panState.isPanning) { appState.view.panX = e.clientX - panState.startX; appState.view.panY = e.clientY - panState.startY; redraw(); } 
+            else if (selectBoxState.active) { selectBoxState.currentX = wPos.x; selectBoxState.currentY = wPos.y; redraw(); }
+        }
+
+        function handleMouseUp(e) {
+            const wPos = screenToWorld(e.clientX, e.clientY);
+            if (connectState.active) {
+                const targetShape = getShapeAt(wPos.x, wPos.y);
+                if (targetShape && targetShape.id !== connectState.fromShapeId) {
+                    let closestPtIdx = 0; let minD = Infinity;
+                    getConnPoints(targetShape).forEach((p, i) => { const d = Math.pow(wPos.x - p.x, 2) + Math.pow(wPos.y - p.y, 2); if (d < minD) { minD = d; closestPtIdx = i; } });
+                    const duplicate = appState.connections.find(c => c.fromShapeId === connectState.fromShapeId && c.fromPointIndex === connectState.fromPointIndex && c.toShapeId === targetShape.id && c.toPointIndex === closestPtIdx );
+                    if (!duplicate) {
+                        appState.connections.push({ id: appState.nextConnectionId++, fromShapeId: connectState.fromShapeId, fromPointIndex: connectState.fromPointIndex, toShapeId: targetShape.id, toPointIndex: closestPtIdx, color: CONSTANTS.DEF_CONN_COLOR, lineWidth: CONSTANTS.DEF_LINE_W, text: '' });
+                        saveHistory();
+                    }
+                }
+                connectState = { active: false, fromShapeId: null, fromPointIndex: null, currentPos: null }; redraw();
+            }
+            if (dragState.isDragging) { if (dragState.hasMoved) saveHistory(); dragState.isDragging = false; snapGuides = []; redraw(); }
+            panState.isPanning = false;
+            if (selectBoxState.active) {
+                const newSelection = getItemsInBox(selectBoxState.startX, selectBoxState.startY, selectBoxState.currentX, selectBoxState.currentY);
+                if (newSelection.length > 0) { selectedItems = newSelection; updateUI(); }
+                selectBoxState.active = false; redraw();
+            }
+        }
+
+        function handleWheel(e) {
+            e.preventDefault(); const wPosBefore = screenToWorld(e.clientX, e.clientY);
+            let newScale = Math.max(0.1, Math.min(appState.view.scale * Math.exp(-e.deltaY * 0.0015), 5));
+            appState.view.scale = newScale;
+            appState.view.panX = e.clientX - wPosBefore.x * newScale - canvas.getBoundingClientRect().left;
+            appState.view.panY = e.clientY - wPosBefore.y * newScale - canvas.getBoundingClientRect().top;
+            redraw();
+        }
+
+        function handleDblClick(e) {
+            const wPos = screenToWorld(e.clientX, e.clientY);
+            const target = getItemAtScreenCoords(wPos.x, wPos.y);
+            if (target && (target.type === 'shape' || target.type === 'connection')) openInlineEditor(target);
+        }
+
+        function handleDrop(e) {
+            e.preventDefault(); const type = e.dataTransfer.getData('shapeType');
+            if (type) {
+                const wPos = screenToWorld(e.clientX, e.clientY);
+                createShape(type, wPos.x - CONSTANTS.MIN_W/2, wPos.y - CONSTANTS.MIN_H/2);
+            }
+        }
+
+        function handleKeyDown(e) {
+            if (e.target === inlineEditor || e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+            if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelected(); } 
+            else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z') { e.preventDefault(); redo(); } 
+            else if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); undo(); } 
+            else if ((e.ctrlKey || e.metaKey) && e.key === 'y') { e.preventDefault(); redo(); } 
+            else if (e.key === 'Escape') { 
+                if (connectState.active) { connectState = { active: false, fromShapeId: null, fromPointIndex: null, currentPos: null }; redraw(); }
+                hideInfoModal();
+            }
+        }
+
+        // --- STREAMING_CHUNK: Creant i redimensionant l'editor de text dinàmic inline ---
+        // --- Editor In-line ---
+        let editingItem = null;
+        function openInlineEditor(target) {
+            editingItem = target; const item = target.item; let screenX, screenY, w, h;
+            
+            if (target.type === 'shape') {
+                const s1 = worldToContainer(item.x, item.y), s2 = worldToContainer(item.x + item.w, item.y + item.h);
+                screenX = s1.x; screenY = s1.y; w = s2.x - s1.x; h = s2.y - s1.y;
+            } else {
+                const s1 = appState.shapes.find(s => s.id === item.fromShapeId), s2 = appState.shapes.find(s => s.id === item.toShapeId);
+                if(!s1 || !s2) return;
+                const p1 = getConnPointCoords(s1, item.fromPointIndex), p2 = getConnPointCoords(s2, item.toPointIndex);
+                const midS = worldToContainer((p1.x+p2.x)/2, (p1.y+p2.y)/2);
+                w = 140; h = 60; screenX = midS.x - w/2; screenY = midS.y - h/2;
+            }
+
+            inlineEditor.value = item.text || '';
+            inlineEditor.style.left = `${screenX}px`; inlineEditor.style.top = `${screenY}px`;
+            inlineEditor.style.width = `${w}px`; inlineEditor.style.height = `${h}px`;
+            inlineEditor.style.display = 'block';
+            inlineEditor.style.fontSize = `${CONSTANTS.FONT_SIZE * appState.view.scale}px`;
+            setTimeout(() => { inlineEditor.focus(); inlineEditor.select(); }, 10);
+        }
+        function saveInlineEditor() {
+            if (!editingItem) return;
+            const newVal = inlineEditor.value;
+            if (editingItem.item.text !== newVal) {
+                editingItem.item.text = newVal;
+                if(editingItem.type === 'shape') autoResizeShape(editingItem.item);
+                saveHistory(); updateUI();
+            }
+            closeInlineEditor();
+        }
+        function closeInlineEditor() { inlineEditor.style.display = 'none'; editingItem = null; redraw(); }
+
+        // --- Redimensionat Automàtic ---
+        function autoResizeShapes() { selectedItems.filter(s => s.type === 'shape').forEach(s => autoResizeShape(s.item)); redraw(); }
+        function autoResizeShape(s) {
+            if (s.type === 'brace') {
+                const lines = s.text ? s.text.split('\n') : [''];
+                ctx.font = `400 ${CONSTANTS.FONT_SIZE}px ${CONSTANTS.FONT_FAMILY}`;
+                let maxTextW = 0; lines.forEach(l => maxTextW = Math.max(maxTextW, ctx.measureText(l.replace(/\*/g,'')).width));
+                const braceW = 16, gap = 10, padH = 24, lineCount = Math.max(1, lines.length);
+                const oldW = s.w, oldH = s.h;
+                s.h = Math.max(CONSTANTS.MIN_H, lineCount * CONSTANTS.LINE_HEIGHT + padH);
+                s.w = Math.max(CONSTANTS.MIN_W, braceW + gap + maxTextW + 16);
+                s.y -= (s.h - oldH) / 2; return;
+            }
+            if(!s.text) { s.w = CONSTANTS.MIN_W; s.h = CONSTANTS.MIN_H; return; }
+            ctx.font = `400 ${CONSTANTS.FONT_SIZE}px ${CONSTANTS.FONT_FAMILY}`;
+            const lines = s.text.split('\n'); let maxW = 0;
+            lines.forEach(l => maxW = Math.max(maxW, ctx.measureText(l.replace(/\*/g,'')).width));
+            
+            let targetW = maxW + 40, targetH = (lines.length * CONSTANTS.LINE_HEIGHT) + 30;
+            if (s.type === 'diamond') { targetW *= 1.4; targetH *= 1.4; }
+            if (s.type === 'oval') { targetW *= 1.2; targetH *= 1.2; }
+            const oldW = s.w, oldH = s.h;
+            s.w = Math.max(CONSTANTS.MIN_W, targetW); s.h = Math.max(CONSTANTS.MIN_H, targetH);
+            s.x -= (s.w - oldW) / 2; s.y -= (s.h - oldH) / 2;
+        }
+
+        // --- Propietats i Selecció ---
+        function isItemSelected(item) { return selectedItems.some(si => si.item.id === item.id); }
+        function selectItem(item, type) { selectedItems = [{item, type}]; updateUI(); }
+        function toggleSelection(item, type) {
+            const idx = selectedItems.findIndex(si => si.item.id === item.id);
+            if (idx >= 0) selectedItems.splice(idx, 1); else selectedItems.push({item, type});
+            updateUI();
+        }
+
+        // --- STREAMING_CHUNK: Mètodes d'actualització d'estats dels botons i panells de control dret ---
+        function updateUI() {
+            if (selectedItems.length > 0) {
+                propertiesPanel.classList.remove('panel-hidden');
+                const first = selectedItems[0].item, type = selectedItems[0].type;
+                
+                document.getElementById('propColor').value = first.color || (type==='shape' ? CONSTANTS.DEF_SHAPE_COLOR : CONSTANTS.DEF_CONN_COLOR);
+                document.getElementById('propColorHex').textContent = document.getElementById('propColor').value.toUpperCase();
+                
+                const textColorGroup = document.getElementById('textColorGroup'), lineWidthGroup = document.getElementById('lineWidthGroup');
+                if (type === 'shape') {
+                    textColorGroup.style.display = 'block'; lineWidthGroup.style.display = 'none';
+                    const tc = first.textColor || CONSTANTS.DEF_TEXT_COLOR;
+                    document.getElementById('propTextColor').value = tc; document.getElementById('propTextColorHex').textContent = tc.toUpperCase();
+                } else {
+                    textColorGroup.style.display = 'none'; lineWidthGroup.style.display = 'block';
+                    const lw = first.lineWidth || CONSTANTS.DEF_LINE_W;
+                    document.getElementById('propLineWidth').value = lw; document.getElementById('propLineWidthVal').textContent = lw;
+                }
+                if (selectedItems.length === 1) { document.getElementById('textFormatGroup').style.display = 'block'; document.getElementById('propText').value = first.text || ''; } 
+                else { document.getElementById('textFormatGroup').style.display = 'none'; }
+            } else { propertiesPanel.classList.add('panel-hidden'); }
+        }
+
+        function applyPropToSelection(prop, value) {
+            if (selectedItems.length === 0) return;
+            selectedItems.forEach(sel => sel.item[prop] = value);
+            if(prop === 'color') document.getElementById('propColorHex').textContent = value;
+            saveHistory(); redraw();
+        }
+        function toggleTextFormat(marker) {
+            const ta = document.getElementById('propText');
+            if (selectedItems.length !== 1) return;
+            const start = ta.selectionStart, end = ta.selectionEnd;
+            if(start === end) return;
+            const text = ta.value, sel = text.substring(start, end), before = text.substring(0, start), after = text.substring(end);
+            let newVal = (before.endsWith(marker) && after.startsWith(marker)) ? before.slice(0, -marker.length) + sel + after.slice(marker.length) : before + marker + sel + marker + after;
+            ta.value = newVal; applyPropToSelection('text', newVal); autoResizeShapes(); ta.focus();
+        }
+
+        // --- Exportació i Importació ---
+        function exportData(filename) {
+            let finalFilename = filename;
+            if (!finalFilename.endsWith('.json')) {
+                finalFilename += '.json';
+            }
+            const dataStr = JSON.stringify(appState, null, 2);
+            const mime = 'application/json';
+            const blob = new Blob([dataStr], {type: mime});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = finalFilename;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast(`Diagrama exportat com a "${finalFilename}"`);
+        }
+
+        function importJson(e) {
+            const file = e.target.files[0]; if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if(data.shapes && data.connections) {
+                        appState = data;
+                        appState.nextShapeId = (appState.shapes.length > 0 ? Math.max(...appState.shapes.map(s => s.id)) : 0) + 1;
+                        appState.nextConnectionId = (appState.connections.length > 0 ? Math.max(...appState.connections.map(c => c.id)) : 0) + 1;
+                        selectedItems = []; saveHistory(true); updateUI(); redraw();
+                        showToast("Document importat correctament.");
+                    } else showToast("Format d'arxiu invàlid", true);
+                } catch (err) { showToast("Error llegint JSON", true); }
+                e.target.value = '';
+            };
+            reader.readAsText(file);
+        }
+
+        // Inicialitzar un cop carregat totalment el DOM de la pàgina
+        window.onload = init;
+    </script>
+</body>
+</html>
