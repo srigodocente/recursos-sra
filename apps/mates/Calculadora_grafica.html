@@ -48,37 +48,71 @@
     user-select: none;
     overflow: hidden;
   }
+  
   #table-panel.visible {
     display: flex;
   }
+  
   #table-header {
     cursor: move;
+  }
+
+  /* Adaptació per a dispositius mòbils en el panell flotant (Estil fulla de fons) */
+  @media (max-width: 767px) {
+    #table-panel {
+      position: fixed;
+      bottom: 0;
+      top: auto;
+      right: 0;
+      left: 0;
+      width: 100%;
+      max-height: 60vh;
+      border-radius: 20px 20px 0 0;
+      box-shadow: 0 -10px 25px -5px rgb(0 0 0 / 0.15);
+      z-index: 100;
+    }
+    #table-header {
+      cursor: default;
+    }
   }
 </style>
 </head>
 <body class="flex flex-col h-screen w-screen overflow-hidden bg-slate-50 select-none">
 
 <!-- 1. Capçalera: 100% d'amplitud a la part superior, amb graella de 3 columnes per centrar elements -->
-<header class="w-full bg-[#FF0000] text-white shadow-lg z-30 px-6 py-4 grid grid-cols-1 md:grid-cols-3 items-center gap-4 border-b border-white/10">
-  <!-- Columna 1: Títol, logotip i botó Info (esquerra) -->
-  <div class="flex items-center justify-between md:justify-start gap-4">
-    <div class="flex items-center gap-3">
-      <div class="p-2.5 rounded-xl">
+<header class="w-full bg-[#FF0000] text-white shadow-lg z-30 px-4 md:px-6 py-4 grid grid-cols-1 md:grid-cols-3 items-center gap-4 border-b border-white/10">
+  
+  <!-- Columna 1: Títol, logotip i botons de control d'interfície (esquerra) -->
+  <div class="flex items-center justify-between md:justify-start gap-3">
+    <div class="flex items-center gap-2">
+      <!-- Botó Menú lateral (Mòbils) -->
+      <button 
+        onclick="toggleSidebar(true)" 
+        class="md:hidden p-2 hover:bg-white/10 rounded-xl transition-colors"
+        title="Obrir funcions"
+      >
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </button>
+
+      <div class="hidden sm:block p-1.5 rounded-xl">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-white drop-shadow">
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
         </svg>
       </div>
-      <div>
-        <h1 class="text-xl font-bold tracking-tight text-white drop-shadow-sm flex items-center gap-2">
-          Calculadora Gràfica
-        </h1>
-      </div>
+      
+      <h1 class="text-lg md:text-xl font-bold tracking-tight text-white drop-shadow-sm">
+        Calculadora Gràfica
+      </h1>
     </div>
     
     <!-- Botó Info -->
     <button 
       onclick="toggleInfoModal()" 
-      class="flex items-center gap-1.5 bg-white/15 hover:bg-white/25 active:bg-white/30 text-white border border-white/25 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all shadow-md shrink-0"
+      class="flex items-center gap-1 bg-white/15 hover:bg-white/25 active:bg-white/30 text-white border border-white/25 rounded-xl px-3 py-1.5 text-xs font-bold transition-all shadow-md shrink-0"
       title="Informació de l'App"
     >
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -90,12 +124,12 @@
     </button>
   </div>
   
-  <!-- Columna 2: Badge central d'autor i llicència (AMAGAT EN MÒBILS 'hidden' i mostrat en md 'md:flex') -->
-  <div class="hidden md:flex justify-self-center bg-white px-3 py-2.5 rounded-xl border border-slate-200/50 shadow-md flex-col items-center text-center">
+  <!-- Columna 2: Badge central d'autor i llicència (amagat en mòbils per defalliment) -->
+  <div class="hidden md:flex justify-self-center bg-white px-3 py-2 rounded-xl border border-slate-200/50 shadow-md flex-col items-center text-center">
     <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener noreferrer" class="text-xs text-blue-600 hover:text-blue-800 transition-colors underline font-bold">
       Santiago Rigo Aguiló
     </a>
-    <div class="flex items-center gap-1.5 mt-1 text-[10px]">
+    <div class="flex items-center gap-1.5 mt-0.5 text-[10px]">
       <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener noreferrer" class="hover:underline text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1">
         CC BY-NC-ND 4.0
         <div class="flex gap-0.5 opacity-90">
@@ -113,11 +147,28 @@
 </header>
 
 <!-- Àrea de contingut inferior dividit en dues columnes -->
-<main class="flex flex-1 w-full overflow-hidden">
+<main class="flex flex-1 w-full overflow-hidden relative">
   
-  <!-- 2. Contenidor Esquerra: Barra lateral sota la capçalera -->
-  <aside class="w-[380px] bg-white border-r border-slate-200 flex flex-col z-20 shadow-sm shrink-0">
-    
+  <!-- Pantalla d'ombra d'enfosquiment (Overlay) en mòbils quan el menú lateral de funcions és actiu -->
+  <div 
+    id="sidebar-overlay" 
+    onclick="toggleSidebar(false)" 
+    class="fixed inset-0 bg-slate-900/45 z-30 hidden transition-opacity duration-300 md:hidden"
+  ></div>
+
+  <!-- 2. Contenidor Esquerra: Barra lateral sota la capçalera (A mòbils és lliscant i adaptativa) -->
+  <aside 
+    id="sidebar-container"
+    class="fixed md:static inset-y-0 left-0 z-40 w-[300px] sm:w-[340px] md:w-[380px] bg-white border-r border-slate-200 flex flex-col shadow-2xl md:shadow-none shrink-0 transition-transform duration-300 transform -translate-x-full md:translate-x-0"
+  >
+    <!-- Capçalera del Drawer de control en dispositius mòbils -->
+    <div class="md:hidden flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
+      <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Menú de control</h3>
+      <button onclick="toggleSidebar(false)" class="text-slate-400 hover:text-slate-600 p-1 rounded-lg">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+
     <!-- Caixa d'afegir nova expressió -->
     <div class="p-4 border-b border-slate-100 bg-slate-50/50">
       <div class="flex flex-col gap-1.5">
@@ -215,16 +266,16 @@
       x: 0.00 | y: 0.00
     </div>
 
-    <!-- Taula de Valors Flotant i Arrossegable -->
+    <!-- Taula de Valors Flotant, Arrossegable o Bottom Sheet en Mòbils -->
     <div id="table-panel" class="border border-slate-200">
       <!-- Capçalera del panell de la taula -->
-      <div id="table-header" class="bg-slate-50 border-b border-slate-100 p-3 flex items-center justify-between">
+      <div id="table-header" class="bg-slate-50 border-b border-slate-100 p-3 flex items-center justify-between select-none">
         <div class="flex items-center gap-2 text-slate-700">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-slate-400"><path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l3 3 3-3M19 9l3 3-3 3"/></svg>
           <span class="font-bold text-sm text-slate-700">Taula de Valors</span>
         </div>
         <div class="flex items-center gap-2">
-          <!-- Selector de funció: el disseny final el fa totalment interactiu gràcies al fix de mousedown -->
+          <!-- Selector de funció per a la taula -->
           <select id="table-func-select" onchange="renderTable()" class="text-xs bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 outline-none text-slate-600 font-bold focus:border-[#FF0000] cursor-pointer"></select>
           <button onclick="toggleTable()" class="text-slate-400 hover:text-slate-600 p-1 hover:bg-slate-200/50 rounded-lg transition-colors">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -233,7 +284,7 @@
       </div>
 
       <!-- Cos de la Taula scrollable -->
-      <div id="table-body" class="flex-1 overflow-y-auto max-h-[250px] p-0"></div>
+      <div id="table-body" class="flex-1 overflow-y-auto max-h-[220px] md:max-h-[250px] p-0"></div>
 
       <!-- Botó d'afegir fila -->
       <div id="table-add-row" onclick="tableAddRow()" class="bg-slate-50 hover:bg-slate-100 active:bg-slate-200 border-t border-slate-100 p-3 text-center text-xs font-bold text-[#FF0000] transition-colors flex items-center justify-center gap-1 cursor-pointer">
@@ -331,6 +382,29 @@ let view = { xMin:-10, xMax:10, yMin:-10, yMax:10 };
 let isDragging = false;
 let lastMouse = {x:0,y:0};
 let keyPoints = []; 
+let sidebarOpen = false;
+
+// Lògica del menú lliscant lateral (Drawer) en mòbils
+function toggleSidebar(forcedState) {
+  const sidebar = document.getElementById('sidebar-container');
+  const overlay = document.getElementById('sidebar-overlay');
+  
+  if (typeof forcedState === 'boolean') {
+    sidebarOpen = forcedState;
+  } else {
+    sidebarOpen = !sidebarOpen;
+  }
+
+  if (sidebarOpen) {
+    sidebar.classList.remove('-translate-x-full');
+    overlay.classList.remove('hidden');
+    overlay.classList.add('block');
+  } else {
+    sidebar.classList.add('-translate-x-full');
+    overlay.classList.add('hidden');
+    overlay.classList.remove('block');
+  }
+}
 
 function mapX(x){ const r=container.getBoundingClientRect(); return ((x-view.xMin)/(view.xMax-view.xMin))*r.width; }
 function mapY(y){ const r=container.getBoundingClientRect(); return r.height-((y-view.yMin)/(view.yMax-view.yMin))*r.height; }
@@ -360,6 +434,10 @@ function addNewExpressionFromHeader() {
   if(val) {
     addExpression(val);
     input.value = '';
+    // Tanca automàticament el menú en mòbils per visualitzar millor el canvas
+    if (window.innerWidth < 768) {
+      toggleSidebar(false);
+    }
   }
 }
 
@@ -442,7 +520,7 @@ function renderList() {
     const checkWrap = document.createElement('div');
     checkWrap.className = 'flex items-center justify-center cursor-pointer';
     checkWrap.innerHTML = `
-      <input type="checkbox" ${!exp.hidden?'checked':''} class="w-4 h-4 rounded cursor-pointer" style="accent-color: ${exp.color}">
+      <input type="checkbox" ${!exp.hidden?'checked':''} class="w-4.5 h-4.5 rounded cursor-pointer" style="accent-color: ${exp.color}">
     `;
     checkWrap.querySelector('input').onchange = () => toggleHidden(exp.id);
 
@@ -468,11 +546,11 @@ function renderList() {
     content.appendChild(input); 
     content.appendChild(errorIcon); 
 
-    // Botó eliminació
+    // Botó de supressió
     const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500 p-1.5 rounded-lg hover:bg-rose-50 transition-all duration-150';
+    deleteBtn.className = 'md:opacity-0 group-hover:opacity-100 text-slate-300 hover:text-rose-500 p-2 rounded-lg hover:bg-rose-50 transition-all duration-150';
     deleteBtn.innerHTML = `
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
     `;
     deleteBtn.onclick = () => removeExpression(exp.id);
 
@@ -496,7 +574,9 @@ function toggleInfoModal() {
   let drag=false, ox=0, oy=0;
   
   header.addEventListener('mousedown', e=>{
-    // Evitem iniciar l'arrossegament si s'està fent clic sobre elements interactius
+    // No drag en mòbils on s'activa l'estil modal/bottom sheet
+    if (window.innerWidth < 768) return;
+
     if(e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION' || e.target.closest('button') || e.target.closest('select')) {
       return;
     }
@@ -525,6 +605,15 @@ function toggleTable(){
   if(panel.classList.contains('visible')){ 
     btn.classList.add('bg-red-50', 'text-[#FF0000]');
     btn.classList.remove('text-slate-600', 'hover:bg-slate-100');
+    // Reinicia posició de l'estil flotant si és necessari en canviar a mòbil/escriptori
+    if (window.innerWidth < 768) {
+      panel.style.left = '0';
+      panel.style.top = 'auto';
+    } else {
+      panel.style.left = '';
+      panel.style.right = '80px';
+      panel.style.top = '24px';
+    }
     updateTableSelect(); 
     renderTable(); 
   } else {
@@ -945,15 +1034,18 @@ function setupCanvasEvents(){
     requestAnimationFrame(draw);
   }, {passive:false});
 
-  // Gestió tàctil de gestos
+  // Gestió tàctil optimitzada per a dispositius mòbils
   canvas.addEventListener('touchstart', e=>{
     if(e.touches.length === 1){
       isDragging=true;
       lastMouse={x:e.touches[0].clientX, y:e.touches[0].clientY};
     }
-  });
+  }, {passive: true});
+  
   canvas.addEventListener('touchmove', e=>{
     if(isDragging && e.touches.length === 1){
+      // Evita el desplaçament vertical de la pàgina en arrossegar la gràfica
+      e.preventDefault();
       const rect=container.getBoundingClientRect();
       const touch = e.touches[0];
       const dxP=touch.clientX-lastMouse.x, dyP=touch.clientY-lastMouse.y;
@@ -964,7 +1056,8 @@ function setupCanvasEvents(){
       lastMouse={x:touch.clientX, y:touch.clientY};
       requestAnimationFrame(draw);
     }
-  });
+  }, {passive: false}); // passive false és imprescindible per permetre e.preventDefault()
+  
   canvas.addEventListener('touchend', ()=>{ isDragging=false; });
 }
 
