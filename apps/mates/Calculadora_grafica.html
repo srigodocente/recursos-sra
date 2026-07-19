@@ -63,7 +63,7 @@
   <!-- Columna 1: Títol, logotip i botó Info (esquerra) -->
   <div class="flex items-center justify-between md:justify-start gap-4">
     <div class="flex items-center gap-3">
-      <div class="b p-2.5 rounded-xl">
+      <div class="p-2.5 rounded-xl">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="text-white drop-shadow">
           <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
         </svg>
@@ -90,8 +90,8 @@
     </button>
   </div>
   
-  <!-- Columna 2: Badge central d'autor i llicència (centrat, fons blanc i text color enllaç) -->
-  <div class="justify-self-center bg-white px-3 py-2.5 rounded-xl border border-slate-200/50 shadow-md flex flex-col items-center text-center">
+  <!-- Columna 2: Badge central d'autor i llicència (AMAGAT EN MÒBILS 'hidden' i mostrat en md 'md:flex') -->
+  <div class="hidden md:flex justify-self-center bg-white px-3 py-2.5 rounded-xl border border-slate-200/50 shadow-md flex-col items-center text-center">
     <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener noreferrer" class="text-xs text-blue-600 hover:text-blue-800 transition-colors underline font-bold">
       Santiago Rigo Aguiló
     </a>
@@ -295,7 +295,6 @@
 </div>
 
 <script>
-// El color primari de la primera funció es posa a vermell per a màxima coherència
 const COLORS = ['#FF0000', '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899', '#14b8a6'];
 let colorIndex = 0;
 
@@ -497,7 +496,7 @@ function toggleInfoModal() {
   let drag=false, ox=0, oy=0;
   
   header.addEventListener('mousedown', e=>{
-    // CRITICAL FIX: Evitem iniciar l'arrossegament si s'està fent clic sobre elements interactius com el selector select o botons
+    // Evitem iniciar l'arrossegament si s'està fent clic sobre elements interactius
     if(e.target.tagName === 'SELECT' || e.target.tagName === 'OPTION' || e.target.closest('button') || e.target.closest('select')) {
       return;
     }
