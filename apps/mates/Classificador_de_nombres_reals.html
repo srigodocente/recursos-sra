@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="ca" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Classificador de Nombres Reals</title>
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#fff1f1',
+                            100: '#ffdfdf',
+                            200: '#ffc5c5',
+                            500: '#ff4444',
+                            600: '#ff0000',
+                            700: '#db0000',
+                            800: '#990000',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- FontAwesome 6 CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+
+    <!-- Google Font Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- KaTeX CDN for LaTeX rendering -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Pulse and glow animations for sets diagram */
+        .set-active {
+            stroke-width: 3.5px;
+            filter: drop-shadow(0px 0px 10px rgba(255, 0, 0, 0.6));
+            transition: all 0.3s ease;
+        }
+
+        .set-box {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .set-box:hover {
+            transform: scale(1.006);
+            cursor: pointer;
+        }
+
+        /* Custom scrollbars */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+
+        .katex-display {
+            margin: 0.1em 0 !important;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col justify-between text-slate-800 bg-slate-50 antialiased selection:bg-brand-100 selection:text-brand-800">
+
+    <!-- CAPÇALERA PRINCIPAL -->
+    <header class="bg-[#ff0000] border-b border-[#db0000] sticky top-0 z-30 shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-col lg:flex-row items-center justify-between gap-3">
+            
+            <!-- BLOC 1: Logotip i Títol -->
+            <div class="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-start">
+                <div class="flex items-center gap-3">
+                    <div class="p-2.5 bg-[#ff0000] text-white shadow-lg shadow-brand-700/30 flex items-center justify-center">
+                        <i class="fa-solid fa-calculator text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg sm:text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
+                            Classificador de nombres reals
+                        </h1>
+                        <p class="text-[11px] text-white/80 font-medium hidden sm:block">
+                            Editor amb notació $\LaTeX$ i diagrames de conjunts ($\mathbb{N}, \mathbb{Z}, \mathbb{Q}, \mathbb{I}, \mathbb{R}$)
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Autor en versió mòbil -->
+                <div class="lg:hidden text-right">
+                    <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener" class="text-xs font-bold text-white/90 hover:underline">
+                        S. Rigo
+                    </a>
+                </div>
+            </div>
+
+            <!-- BLOC 2: Targeta d'Autoria i Llicència (Centre/Desktop) - PROHIBIT MODIFICAR -->
+            <div class="hidden lg:flex bg-white px-4 py-2 rounded-xl border border-[#db0000] shadow-inner flex-col items-center text-center">
+                <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener" class="text-xs font-bold text-[#db0000] hover:underline transition-colors flex items-center gap-1.5">
+                    <i class="fa-brands fa-instagram text-[#db0000]"></i> Santiago Rigo Aguiló
+                </a>
+                <div class="flex items-center gap-1.5 mt-0.5 text-[10px] text-[#db0000]">
+                    <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener" class="hover:underline flex items-center gap-1">
+                        CC BY-NC-ND 4.0
+                        <span class="flex gap-0.5 opacity-100">
+                            <i class="fa-brands fa-creative-commons"></i>
+                            <i class="fa-brands fa-creative-commons-by"></i>
+                            <i class="fa-brands fa-creative-commons-nc"></i>
+                            <i class="fa-brands fa-creative-commons-nd"></i>
+                        </span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- BLOC 3: Botons d'Acció -->
+            <div class="flex items-center gap-2 flex-wrap w-full lg:w-auto justify-end">
+                <button onclick="openHelpModal()" class="bg-[#ff4444] hover:bg-[#db0000] text-white border border-[#ff4444] rounded-xl px-3 py-2 text-xs font-medium transition-all flex items-center gap-1.5 shadow-sm" title="Informació de l'App">
+                    <i class="fa-solid fa-circle-question text-white text-sm"></i>
+                    <span>Info</span>
+                </button>
+
+                <!-- Botó Canvi de Mode / Pràctica -->
+                <button id="btn-toggle-mode" onclick="toggleAppMode()" class="bg-[#ff4444] hover:bg-[#db0000] text-white border border-[#ff4444] rounded-xl px-4 py-2 text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-brand-600/20 active:scale-95">
+                    <i id="mode-icon" class="fa-solid fa-gamepad text-sm"></i>
+                    <span id="mode-text">Mode Repte</span>
+                </button>
+
+                <!-- Botó Quadrat Reset -->
+                <button onclick="resetApp()" class="bg-[#ff4444] hover:bg-[#db0000] hover:text-white border border-[#ff4444] rounded-xl p-2 text-xs transition-all flex items-center justify-center text-white" title="Restablir dades originals">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTINGUT PRINCIPAL -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 flex-grow w-full">
+
+        <!-- SUB-HEADER DE NAVEGACIÓ ENTRE SECCIONS -->
+        <div class="flex items-center justify-between mb-6 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
+            <div class="flex gap-1">
+                <button id="tab-classifier" onclick="switchTab('classifier')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 bg-[#ff0000] text-white shadow-md">
+                    <i class="fa-solid fa-square-root-variable"></i>
+                    <span>Classificador i editor $\LaTeX$</span>
+                </button>
+                <button id="tab-quiz" onclick="switchTab('quiz')" class="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 text-slate-600 hover:bg-slate-100">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                    <span>Pràctica i preguntes</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- ================= SECCIÓ 1: CLASSIFICADOR I EDITOR DE NOMBRES ================= -->
+        <div id="section-classifier" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+            <!-- COLUMNA ESQUERRA: Editor de Nombres, Teclat Matemàtic i Resultats -->
+            <div class="lg:col-span-5 space-y-6 flex flex-col">
+                
+                <!-- TARGETA: PETIT EDITOR D'EQUACIONS (NOMBRE OBJECTIU) -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-extrabold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-square-root-variable text-[#ff0000]"></i>
+                            Editor de nombres reals:
+                        </label>
+                    </div>
+
+                    <!-- VISOR PRINCIPAL DEL NOMBRE OBJECTIU EN LATEX -->
+                    <div class="bg-slate-900 text-white p-4 rounded-xl shadow-inner border border-slate-800 flex flex-col items-center justify-center min-h-[90px] relative group">
+                        <span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Nombre objectiu ($x$):</span>
+                        <div id="target-equation-display" class="text-2xl sm:text-3xl font-bold text-white tracking-wide py-1 flex items-center justify-center min-h-[42px]">
+                            <!-- Renderitzat KaTeX en temps real -->
+                        </div>
+                    </div>
+
+                    <!-- TECLAT / SELECTOR D'ESTRUTURA D'EQUACIÓ -->
+                    <div class="space-y-1.5">
+                        <span class="text-[11px] font-bold text-slate-600 block">Selecciona l'estructura de l'equació:</span>
+                        <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                            <button id="eq-btn-int" onclick="setEqType('int')" class="px-2 py-2 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-[#db0000] border border-slate-200 hover:border-red-300 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5">
+                                <span>$a$</span>
+                                <span class="text-[9px] font-medium">Enter</span>
+                            </button>
+                            <button id="eq-btn-frac" onclick="setEqType('frac')" class="px-2 py-2 bg-red-50 text-[#db0000] border-2 border-[#ff0000] rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 shadow-sm">
+                                <span>$\frac{a}{b}$</span>
+                                <span class="text-[9px] font-medium">Fracció</span>
+                            </button>
+                            <button id="eq-btn-pure" onclick="setEqType('pure')" class="px-2 py-2 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-[#db0000] border border-slate-200 hover:border-red-300 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5">
+                                <span>$a.\overline{P}$</span>
+                                <span class="text-[9px] font-medium">Per. Pur</span>
+                            </button>
+                            <button id="eq-btn-mixed" onclick="setEqType('mixed')" class="px-2 py-2 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-[#db0000] border border-slate-200 hover:border-red-300 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5">
+                                <span>$a.A\overline{P}$</span>
+                                <span class="text-[9px] font-medium">Per. Mixt</span>
+                            </button>
+                            <button id="eq-btn-exact" onclick="setEqType('exact')" class="px-2 py-2 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-[#db0000] border border-slate-200 hover:border-red-300 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5">
+                                <span>$a.b$</span>
+                                <span class="text-[9px] font-medium">Exacte</span>
+                            </button>
+                            <button id="eq-btn-root" onclick="setEqType('root')" class="px-2 py-2 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-[#db0000] border border-slate-200 hover:border-red-300 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5">
+                                <span>$\sqrt[n]{x}$</span>
+                                <span class="text-[9px] font-medium">Arrel</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- CAIXES D'ENTRADA VISUAL INTERACTIVES SEGONS MODE -->
+                    <div id="eq-inputs-container" class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex items-center justify-center min-h-[105px]">
+
+                        <!-- FORMULARI VISUAL: NOMBRE ENTER (a) -->
+                        <div id="eq-form-int" class="hidden flex flex-col items-center">
+                            <label class="text-[9px] font-bold text-slate-500 uppercase">Nombre Enter ($a$)</label>
+                            <input type="number" id="eq-int-val" value="-5" class="w-24 px-2 py-1 bg-white border-2 border-slate-300 focus:border-[#ff0000] rounded-lg text-center text-sm font-bold text-slate-900 focus:outline-none transition-all shadow-xs" oninput="updateEqFromVisualInputs()" placeholder="ex: -5 o 7">
+                        </div>
+
+                        <!-- FORMULARI VISUAL: FRACCIÓ (a/b) -->
+                        <div id="eq-form-frac" class="flex flex-col items-center gap-1">
+                            <input type="number" id="eq-frac-num" value="3" class="w-20 px-2 py-1 bg-white border-2 border-slate-300 focus:border-[#ff0000] rounded-lg text-center text-sm font-bold text-slate-900 focus:outline-none transition-all shadow-xs" oninput="updateEqFromVisualInputs()" placeholder="num">
+                            <div class="w-24 h-0.5 bg-slate-800 rounded-full my-0.5"></div>
+                            <input type="number" id="eq-frac-den" value="4" class="w-20 px-2 py-1 bg-white border-2 border-slate-300 focus:border-[#ff0000] rounded-lg text-center text-sm font-bold text-slate-900 focus:outline-none transition-all shadow-xs" oninput="updateEqFromVisualInputs()" placeholder="den">
+                        </div>
+
+                        <!-- FORMULARI VISUAL: PERIÒDIC PUR (a.P) -->
+                        <div id="eq-form-pure" class="hidden flex items-center gap-1.5">
+                            <div class="flex flex-col items-center">
+                                <label class="text-[9px] font-bold text-slate-500 uppercase">Part Entera</label>
+                                <input type="number" id="eq-pure-int" value="0" class="w-16 px-2 py-1 bg-white border-2 border-slate-300 focus:border-[#ff0000] rounded-lg text-center text-sm font-bold text-slate-900 focus:outline-none transition-all" oninput="updateEqFromVisualInputs()">
+                            </div>
+                            <span class="text-xl font-extrabold text-slate-700 pt-3">,</span>
+                            <div class="flex flex-col items-center relative">
+                                <div class="w-full h-1 bg-[#ff0000] rounded-t-sm mb-0.5"></div>
+                                <label class="text-[9px] font-bold text-[#db0000] uppercase">Període ($\overline{P}$)</label>
+                                <input type="number" id="eq-pure-period" value="3" class="w-20 px-2 py-1 bg-red-50 border-2 border-[#ff0000] rounded-lg text-center text-sm font-bold text-slate-900 focus:outline-none transition-all" oninput="updateEqFromVisualInputs()">
+                            </div>
+                        </div>
+
+                        <!-- FORMULARI VISUAL: PERIÒDIC MIXT (a.A P) -->
+                        <div id="eq-form-mixed" class="hidden flex items-center gap-1.5">
+                            <div class="flex flex-col items-center">
+                                <label class="text-[9px] font-bold text-slate-500 uppercase">Entera</label>
+                                <input type="number" id="eq-mixed-int" value="1" class="w-14 px-2 py-1 bg-white border-2 border-slate-300 focus:border-[#ff0000] rounded-lg text-center text-sm font-bold text-slate-900 focus:outline-none transition-all" oninput="updateEqFromVisualInputs()">
+                            </div>
+                            <span class="text-xl font-extrabold text-slate-700 pt-3">,</span>
+                            <div class="flex flex-col items-center">
+                                <label class="text-[9px] font-bold text-amber-600 uppercase">Anteperíode ($A$)</label>
+                                <input type="number" id="eq-mixed-ante" value="2" class="w-16 px-2 py-1 bg-amber-50 border-2 border-amber-300 focus:border-[#ff0000] rounded-lg text-center text-sm font-bold text-slate-900 focus:outline-none transition-all" oninput="updateEqFromVisualInputs()">
+                            </div>
+                            <div class="flex flex-col items-center">
+                                <div class="w-full h-1 bg-[#ff0000] rounded-t-sm mb-0.5"></div>
+                                <label class="text-[9px] font-bold text-[#db0000] uppercase">Període ($\overline{P}$)</label>
+                                <input type="number" id="eq-mixed-period" value="34" class="w-20 px-2 py-1 bg-red-50 border-2 border-[#ff0000] rounded-lg text-center text-sm font-bold text-slate-900 focus:outline-none transition-all" oninput="updateEqFromVisualInputs()">
+                            </div>
+                        </div>
+
+                        <!-- FORMULARI VISUAL: DECIMAL EXACTE -->
+                        <div id="eq-form-exact" class="hidden flex items-center gap-1.5">
+                            <div class="flex flex-col items-center">
+                                <label class="text-[9px] font-bold text-slate-500 uppercase">Part Entera</label>
+                                <input type="number" id="eq-exact-int" value="2" class="w-20 px-2 py-1 bg-white border-2 border-slate-300 focus:border-[#ff0000] rounded-lg text-center text-sm font-bold text-slate-900 focus:outline-none transition-all" oninput="updateEqFromVisualInputs()">
+                            </div>
+                            <span class="text-xl font-extrabold text-slate-700 pt-3">,</span>
+                            <div class="flex flex-col items-center">
+                                <label class="text-[9px] font-bold text-slate-500 uppercase">Part Decimal Finita</label>
+                                <input type="number" id="eq-exact-dec" value="75" class="w-24 px-2 py-1 bg-white border-2 border-slate-300 focus:border-[#ff0000] rounded-lg text-center text-sm font-bold text-slate-900 focus:outline-none transition-all" oninput="updateEqFromVisualInputs()">
+                            </div>
+                        </div>
+
+                        <!-- FORMULARI VISUAL: ARREL / RADICAL -->
+                        <div id="eq-form-root" class="hidden flex items-center gap-1">
+                            <div class="flex flex-col items-center -mr-1 z-10">
+                                <label class="text-[9px] font-bold text-slate-500 uppercase">Índex ($n$)</label>
+                                <input type="number" id="eq-root-idx" value="2" min="1" class="w-12 px-1 py-0.5 bg-white border border-slate-300 rounded text-center text-xs font-bold text-slate-800" oninput="updateEqFromVisualInputs()">
+                            </div>
+                            <span class="text-3xl font-extrabold text-slate-700 pt-2">√</span>
+                            <div class="flex flex-col items-center border-t-2 border-slate-700 pt-1">
+                                <label class="text-[9px] font-bold text-slate-500 uppercase">Radicand ($x$)</label>
+                                <input type="number" id="eq-root-val" value="2" class="w-20 px-2 py-1 bg-white border-2 border-slate-300 focus:border-[#ff0000] rounded-lg text-center text-sm font-bold text-slate-900 focus:outline-none transition-all" oninput="updateEqFromVisualInputs()">
+                            </div>
+                        </div>
+
+                        <!-- FORMULARI VISUAL: TEXT DIRECTE -->
+                        <div id="eq-form-direct" class="hidden w-full space-y-2">
+                            <div class="relative flex items-center">
+                                <input type="text" id="number-input" placeholder="Ex: 3/4, sqrt(2), pi, 0.333..."
+                                    class="w-full pl-3 pr-8 py-2 bg-white border-2 border-slate-300 rounded-xl text-sm font-semibold text-slate-900 focus:outline-none focus:border-[#ff0000] transition-all shadow-xs"
+                                    oninput="onInputChanged()" onkeydown="handleKeyPress(event)" />
+                                <button onclick="clearInput()" class="absolute right-2.5 text-slate-400 hover:text-slate-600 p-1" title="Netejar">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- BOTONS D'INSERCIÓ RÀPIDA DE PRESETS EN LATEX -->
+                    <div class="pt-1">
+                        <div class="flex items-center justify-between mb-1.5">
+                            <span class="text-[11px] font-semibold text-slate-500">Preset o Símbols Directes:</span>
+                            <button onclick="setEqType('direct')" class="text-[10px] text-[#db0000] hover:underline font-bold">Mode Text Lliure</button>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button onclick="loadPreset('8')" class="px-2.5 py-1 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-[#db0000] border border-slate-200 hover:border-red-200 rounded-lg text-xs font-semibold transition-all">$8$</button>
+                            <button onclick="loadPreset('-15')" class="px-2.5 py-1 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-[#db0000] border border-slate-200 hover:border-red-200 rounded-lg text-xs font-semibold transition-all">$-15$</button>
+                            <button onclick="loadPreset('3/4')" class="px-2.5 py-1 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-[#db0000] border border-slate-200 hover:border-red-200 rounded-lg text-xs font-semibold transition-all">$\frac{3}{4}$</button>
+                            <button onclick="loadPreset('0.333...')" class="px-2.5 py-1 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-[#db0000] border border-slate-200 hover:border-red-200 rounded-lg text-xs font-semibold transition-all">$0.\overline{3}$</button>
+                            <button onclick="loadPreset('1.2(34)')" class="px-2.5 py-1 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-[#db0000] border border-slate-200 hover:border-red-200 rounded-lg text-xs font-semibold transition-all">$1.2\overline{34}$</button>
+                            <button onclick="loadPreset('sqrt(2)')" class="px-2.5 py-1 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-[#db0000] border border-slate-200 hover:border-red-200 rounded-lg text-xs font-semibold transition-all">$\sqrt{2}$</button>
+                            <button onclick="loadPreset('pi')" class="px-2.5 py-1 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-[#db0000] border border-slate-200 hover:border-red-200 rounded-lg text-xs font-semibold transition-all">$\pi$</button>
+                            <button onclick="loadPreset('sqrt(16)')" class="px-2.5 py-1 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-[#db0000] border border-slate-200 hover:border-red-200 rounded-lg text-xs font-semibold transition-all">$\sqrt{16}$</button>
+                            <button onclick="loadPreset('sqrt(-4)')" class="px-2.5 py-1 bg-slate-100 hover:bg-rose-50 text-slate-700 hover:text-rose-700 border border-slate-200 hover:border-rose-200 rounded-lg text-xs font-semibold transition-all">$\sqrt{-4}$</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Targeta de Resultats i Resum de Classificació -->
+                <div id="results-card" class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm flex-grow space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-[#ff0000]"></i>
+                            Resultat de la Classificació
+                        </h3>
+                        <span id="smallest-set-badge" class="px-3 py-1 bg-[#ff0000] text-white rounded-full text-xs font-extrabold shadow-sm">
+                            Escriu un nombre
+                        </span>
+                    </div>
+
+                    <!-- Valor simplificat en LaTeX i Decimal -->
+                    <div id="value-breakdown" class="bg-slate-50 p-3.5 rounded-xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-500 font-medium">Expressió $\LaTeX$:</span>
+                            <span id="display-parsed-val" class="font-extrabold text-slate-900 text-sm flex items-center min-h-[28px]">-</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-slate-500 font-medium">Aproximació Decimal:</span>
+                            <span id="display-decimal-val" class="font-mono text-slate-700 font-bold">-</span>
+                        </div>
+                    </div>
+
+                    <!-- Llista de Pertinença a Conjunts amb justificació LaTeX -->
+                    <div class="space-y-2.5 pt-1" id="set-membership-list">
+                        <!-- Generat dinàmicament per JS -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- COLUMNA DRETA: Diagrama Concèntric de Conjunts -->
+            <div class="lg:col-span-7 space-y-6">
+                
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-2">
+                            <i class="fa-solid fa-circle-nodes text-[#ff0000]"></i>
+                            Diagrama de Conjunts Concèntrics:
+                        </h3>
+                        <span class="text-[11px] text-slate-500 font-medium">Fes clic en un conjunt per veure la teòria</span>
+                    </div>
+
+                    <!-- SVG DIAGRAMA CONCÈNTRIC DE CONJUNTS DE NOMBRES -->
+                    <div class="relative w-full bg-slate-900 rounded-2xl p-4 sm:p-6 overflow-hidden shadow-inner border border-slate-800 flex items-center justify-center min-h-[360px]">
+                        
+                        <!-- SVG de Conjunts -->
+                        <svg viewBox="0 0 600 400" class="w-full h-auto max-h-[380px] drop-shadow-2xl">
+                            
+                            <!-- CONJUNT R (REALS) -->
+                            <g id="svg-set-R" class="cursor-pointer" onclick="showSetInfo('R')">
+                                <rect x="10" y="10" width="580" height="380" rx="24" fill="#0f172a" stroke="#334155" stroke-width="2" class="set-box" />
+                                <text x="30" y="42" fill="#94a3b8" font-size="18" font-weight="800">ℝ (Reals)</text>
+                            </g>
+
+                            <!-- CONJUNT I (IRRACIONALS - DRETA) -->
+                            <g id="svg-set-I" class="cursor-pointer" onclick="showSetInfo('I')">
+                                <rect x="390" y="60" width="180" height="310" rx="20" fill="#1e1b4b" fill-opacity="0.6" stroke="#6366f1" stroke-width="2" stroke-dasharray="4 4" class="set-box" />
+                                <text x="410" y="92" fill="#818cf8" font-size="16" font-weight="800">𝕀 (Irracionals)</text>
+                                <text x="410" y="115" fill="#a5b4fc" font-size="11" font-weight="500">No fraccionaris</text>
+                                <text x="410" y="145" fill="#6366f1" font-size="12" font-mono="true">π, e, √2, √5</text>
+                            </g>
+
+                            <!-- CONJUNT Q (RACIONALS - ESQUERRA) -->
+                            <g id="svg-set-Q" class="cursor-pointer" onclick="showSetInfo('Q')">
+                                <rect x="30" y="60" width="345" height="310" rx="20" fill="#032b45" fill-opacity="0.8" stroke="#0ea5e9" stroke-width="2" class="set-box" />
+                                <text x="50" y="92" fill="#38bdf8" font-size="16" font-weight="800">ℚ (Racionals)</text>
+                                <text x="50" y="112" fill="#7dd3fc" font-size="11" font-weight="500">Fraccions a/b</text>
+                                <text x="50" y="132" fill="#0284c7" font-size="11" font-mono="true">3/4, -0.5, 0.333...</text>
+                            </g>
+
+                            <!-- CONJUNT Z (ENTERS) -->
+                            <g id="svg-set-Z" class="cursor-pointer" onclick="showSetInfo('Z')">
+                                <rect x="50" y="145" width="305" height="210" rx="16" fill="#064e3b" fill-opacity="0.8" stroke="#10b981" stroke-width="2" class="set-box" />
+                                <text x="70" y="175" fill="#34d399" font-size="15" font-weight="800">ℤ (Enters)</text>
+                                <text x="70" y="195" fill="#6ee7b7" font-size="11" font-weight="500">Sense decimals</text>
+                                <text x="70" y="215" fill="#059669" font-size="11" font-mono="true">-3, -2, -1...</text>
+                            </g>
+
+                            <!-- CONJUNT N (NATURALS) -->
+                            <g id="svg-set-N" class="cursor-pointer" onclick="showSetInfo('N')">
+                                <rect x="70" y="228" width="265" height="112" rx="12" fill="#701a75" fill-opacity="0.8" stroke="#e879f9" stroke-width="2" class="set-box" />
+                                <text x="90" y="258" fill="#f0abfc" font-size="15" font-weight="800">ℕ (Naturals)</text>
+                                <text x="90" y="278" fill="#f5d0fe" font-size="11" font-weight="500">Comptar (positius i 0)</text>
+                                <text x="90" y="305" fill="#c026d3" font-size="12" font-mono="true">0, 1, 2, 3, 10...</text>
+                            </g>
+
+                            <!-- INDICADOR DINÀMIC D'UBICACIÓ DEL NOMBRE -->
+                            <g id="svg-marker" class="transition-all duration-500 ease-out opacity-0">
+                                <circle id="marker-circle" cx="0" cy="0" r="18" fill="#ff0000" fill-opacity="0.9" stroke="#ffffff" stroke-width="3" />
+                                <text id="marker-text" x="0" y="4" text-anchor="middle" fill="#ffffff" font-size="10" font-weight="900"></text>
+                            </g>
+
+                        </svg>
+
+                    </div>
+
+                    <!-- Targeta d'Explicació Teòrica Dinàmica -->
+                    <div id="set-info-card" class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-1.5 transition-all">
+                        <div class="flex items-center gap-2 text-brand-700 font-bold text-xs uppercase">
+                            <i class="fa-solid fa-lightbulb text-brand-600"></i>
+                            <span id="info-set-title">Informació del Conjunt Seleccionat</span>
+                        </div>
+                        <p id="info-set-desc" class="text-xs text-slate-600 leading-relaxed">
+                            Fes clic en qualsevol dels conjunts de la figura superior ($\mathbb{N}, \mathbb{Z}, \mathbb{Q}, \mathbb{I}, \mathbb{R}$) per veure la seva definició i propietats.
+                        </p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- ================= SECCIÓ 2: MODE PRÀCTICA I REPTE ================= -->
+        <div id="section-quiz" class="hidden space-y-6">
+            
+            <div class="max-w-3xl mx-auto bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                
+                <!-- Capçalera del Repte -->
+                <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <div>
+                        <h2 class="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                            <i class="fa-solid fa-gamepad text-[#ff0000]"></i>
+                            Repte de Classificació de Nombres en $\LaTeX$
+                        </h2>
+                        <p class="text-xs text-slate-500">Classifica correctament les expressions matemàtiques proposades!</p>
+                    </div>
+
+                    <!-- Marcador de Punts -->
+                    <div class="flex items-center gap-3">
+                        <div class="text-center px-3 py-1.5 bg-emerald-50 border border-emerald-200 rounded-xl">
+                            <span class="block text-[10px] font-bold text-emerald-600 uppercase">Punts</span>
+                            <span id="quiz-score" class="text-base font-black text-emerald-700">0</span>
+                        </div>
+                        <div class="text-center px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-xl">
+                            <span class="block text-[10px] font-bold text-amber-600 uppercase">Ràtxa</span>
+                            <span id="quiz-streak" class="text-base font-black text-amber-700">0 🔥</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pregunta Actual en LaTeX -->
+                <div class="bg-slate-900 text-white p-6 rounded-2xl text-center space-y-3 shadow-lg">
+                    <span class="text-xs font-semibold uppercase tracking-wider text-slate-400">Classifica el següent nombre:</span>
+                    <div id="quiz-number-display" class="text-3xl sm:text-4xl font-black text-brand-50 tracking-wide font-mono py-2 min-h-[60px] flex items-center justify-center">
+                        <!-- Renderitzat amb KaTeX -->
+                    </div>
+                    <p class="text-xs text-slate-300">Selecciona <strong class="text-white">TOTS els conjunts</strong> als quals pertany aquest nombre:</p>
+                </div>
+
+                <!-- Opcions de Selecció -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3" id="quiz-options-container">
+                    
+                    <label class="quiz-option cursor-pointer p-3.5 bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 rounded-xl flex items-center gap-3 transition-all">
+                        <input type="checkbox" value="N" class="quiz-checkbox w-4 h-4 text-[#ff0000] focus:ring-[#ff0000] rounded">
+                        <div>
+                            <span class="block font-bold text-xs text-slate-800">$\mathbb{N}$ - Naturals</span>
+                            <span class="text-[10px] text-slate-500">$0, 1, 2, 3\dots$</span>
+                        </div>
+                    </label>
+
+                    <label class="quiz-option cursor-pointer p-3.5 bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 rounded-xl flex items-center gap-3 transition-all">
+                        <input type="checkbox" value="Z" class="quiz-checkbox w-4 h-4 text-[#ff0000] focus:ring-[#ff0000] rounded">
+                        <div>
+                            <span class="block font-bold text-xs text-slate-800">$\mathbb{Z}$ - Enters</span>
+                            <span class="text-[10px] text-slate-500">$\dots -2, -1, 0, 1 \dots$</span>
+                        </div>
+                    </label>
+
+                    <label class="quiz-option cursor-pointer p-3.5 bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 rounded-xl flex items-center gap-3 transition-all">
+                        <input type="checkbox" value="Q" class="quiz-checkbox w-4 h-4 text-[#ff0000] focus:ring-[#ff0000] rounded">
+                        <div>
+                            <span class="block font-bold text-xs text-slate-800">$\mathbb{Q}$ - Racionals</span>
+                            <span class="text-[10px] text-slate-500">Fraccions $\frac{a}{b}$</span>
+                        </div>
+                    </label>
+
+                    <label class="quiz-option cursor-pointer p-3.5 bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 rounded-xl flex items-center gap-3 transition-all">
+                        <input type="checkbox" value="I" class="quiz-checkbox w-4 h-4 text-[#ff0000] focus:ring-[#ff0000] rounded">
+                        <div>
+                            <span class="block font-bold text-xs text-slate-800">$\mathbb{I}$ - Irracionals</span>
+                            <span class="text-[10px] text-slate-500">Decimal no periòdic</span>
+                        </div>
+                    </label>
+
+                    <label class="quiz-option cursor-pointer p-3.5 bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 rounded-xl flex items-center gap-3 transition-all">
+                        <input type="checkbox" value="R" class="quiz-checkbox w-4 h-4 text-[#ff0000] focus:ring-[#ff0000] rounded">
+                        <div>
+                            <span class="block font-bold text-xs text-slate-800">$\mathbb{R}$ - Reals</span>
+                            <span class="text-[10px] text-slate-500">Tots els reals</span>
+                        </div>
+                    </label>
+
+                    <label class="quiz-option cursor-pointer p-3.5 bg-slate-50 hover:bg-slate-100 border-2 border-slate-200 rounded-xl flex items-center gap-3 transition-all">
+                        <input type="checkbox" value="NONE" class="quiz-checkbox w-4 h-4 text-[#ff0000] focus:ring-[#ff0000] rounded">
+                        <div>
+                            <span class="block font-bold text-xs text-rose-700">No és Real</span>
+                            <span class="text-[10px] text-rose-500">Ex: $\sqrt{-4}$</span>
+                        </div>
+                    </label>
+
+                </div>
+
+                <!-- Feedback Message Container -->
+                <div id="quiz-feedback" class="hidden p-4 rounded-xl text-xs font-semibold space-y-1"></div>
+
+                <!-- Botons d'Acció Quiz -->
+                <div class="flex items-center justify-end gap-3 pt-2">
+                    <button id="btn-quiz-submit" onclick="checkQuizAnswer()" class="bg-[#ff4444] hover:bg-[#db0000] text-white border border-[#ff4444] rounded-xl px-5 py-2.5 text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-brand-600/20 active:scale-95">
+                        <i class="fa-solid fa-circle-check text-sm"></i>
+                        <span>Comprovar Resposta</span>
+                    </button>
+
+                    <button id="btn-quiz-next" onclick="nextQuizQuestion()" class="hidden bg-slate-800 hover:bg-slate-900 text-white rounded-xl px-5 py-2.5 text-xs font-bold transition-all flex items-center gap-2 shadow-md">
+                        <span>Següent Pregunta</span>
+                        <i class="fa-solid fa-arrow-right text-sm"></i>
+                    </button>
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- MODAL D'AJUDA I INFORMACIÓ (OBLIGATORI SEGONS REGLES) -->
+    <div id="modal-help-backdrop" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden transition-opacity duration-200">
+        <div id="modal-help" class="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden border border-slate-200 transform scale-95 opacity-0 transition-all duration-200">
+            
+            <!-- Capçalera -->
+            <div class="bg-[#ff0000] px-6 py-4 border-b border-[#ff4444] flex items-center justify-between text-white">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-circle-info text-white text-lg"></i>
+                    <h3 class="font-bold text-base">Informació de l'App</h3>
+                </div>
+                <button onclick="closeModal()" class="text-white hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Cos Dinàmic -->
+            <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto text-xs text-slate-600 leading-relaxed">
+                <p class="text-sm font-medium text-slate-800">
+                    Aquesta aplicació permet construir, analitzar i classificar qualsevol nombre o expressió matemàtica mitjançant notació $\LaTeX$ en els diferents conjunts de nombres reals ($\mathbb{N}, \mathbb{Z}, \mathbb{Q}, \mathbb{I}, \mathbb{R}$).
+                </p>
+                
+                <div class="space-y-3 pt-1">
+                    <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="w-5 h-5 bg-brand-100 text-brand-700 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">1</span>
+                        <p><strong>Petit Editor Matemàtic ($\LaTeX$):</strong> Utilitza les plantilles per escriure fraccions ($\frac{a}{b}$), decimals exactes ($a.b$), decimals periòdics purs ($0.\overline{P}$), periòdics mixtos ($0.A\overline{P}$) i arrels ($\sqrt[n]{x}$).</p>
+                    </div>
+                    <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="w-5 h-5 bg-brand-100 text-brand-700 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">2</span>
+                        <p><strong>Classificació Instantània:</strong> Observa la representació formal en $\LaTeX$, la seva aproximació decimal i la pertinença als conjunts ($\mathbb{N}, \mathbb{Z}, \mathbb{Q}, \mathbb{I}, \mathbb{R}$).</p>
+                    </div>
+                    <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="w-5 h-5 bg-brand-100 text-brand-700 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">3</span>
+                        <p><strong>Diagrama de Venn Concèntric:</strong> Visualitza la il·luminació automàtica del subconjunt mínim i de tots els conjunts supervisors.</p>
+                    </div>
+                    <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="w-5 h-5 bg-brand-100 text-brand-700 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">4</span>
+                        <p><strong>Mode Repte i Pràctica:</strong> Posa a prova els teus coneixements amb preguntes d'autoavaluació.</p>
+                    </div>
+                </div>
+
+                <!-- Llicència Interna - INVARIABLE -->
+                <div class="border-t border-slate-200 pt-4 mt-2 flex flex-col items-center text-center gap-1.5 bg-white p-3 rounded-xl">
+                    <span class="font-bold text-[#db0000]">
+                       <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener" class="text-[#db0000] hover:underline flex items-center gap-1.5">
+                           <i class="fa-brands fa-instagram text-[#db0000]"></i> Santiago Rigo Aguiló
+                       </a>
+                    </span>
+                    <div class="flex items-center gap-1.5 justify-center text-[#db0000]">
+                        <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener" class="hover:underline font-semibold flex items-center gap-1">
+                           CC BY-NC-ND 4.0
+                            <span class="flex gap-0.5 text-slate-700">
+                                <i class="fa-brands fa-creative-commons"></i>
+                                <i class="fa-brands fa-creative-commons-by"></i>
+                                <i class="fa-brands fa-creative-commons-nc"></i>
+                                <i class="fa-brands fa-creative-commons-nd"></i>
+                            </span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Peu -->
+            <div class="bg-slate-100 px-6 py-3 border-t border-slate-200 flex justify-end">
+                <button onclick="closeModal()" class="py-2 px-5 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl text-xs transition-all shadow-md">
+                    D'acord!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PEU DE PÀGINA EN L'APLICACIO -->
+    <footer class="bg-slate-100 border-t border-slate-200 py-3 px-4 text-center text-[11px] text-slate-500">
+        <div class="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
+            <span>Classificador de Nombres Reals &copy; 2026</span>
+            <span class="text-slate-400">Recurs educatiu interactiu amb Notació $\LaTeX$ i KaTeX</span>
+        </div>
+    </footer>
+
+    <!-- JAVASCRIPT LOGIC & ENGINE -->
+    <script>
+        /* DEFINICIÓ DE DADES I CONJUNTS DE NOMBRES */
+        const SET_DEFINITIONS = {
+            'N': {
+                name: 'Nombres NATURALS',
+                symbol: '\\mathbb{N}',
+                color: '#e879f9',
+                desc: 'Són els nombres utilitzats per comptar elements sencers ($0, 1, 2, 3, 10, 100\\dots$). Són tots els enters no negatius.'
+            },
+            'Z': {
+                name: 'Nombres ENTERS',
+                symbol: '\\mathbb{Z}',
+                color: '#10b981',
+                desc: 'Inclouen tots els nombres naturals, el zero i els seus oposats negatius ($\\dots, -3, -2, -1, 0, 1, 2, 3, \\dots$). No tenen part decimal.'
+            },
+            'Q': {
+                name: 'Nombres RACIONALS',
+                symbol: '\\mathbb{Q}',
+                color: '#0ea5e9',
+                desc: 'Són aquells nombres que es poden expressar com una fracció $\\frac{a}{b}$, on $a, b \\in \\mathbb{Z}$ ($b \\neq 0$). Inclouen enters, decimals finits i decimals periòdics.'
+            },
+            'I': {
+                name: 'Nombres IRRACIONALS',
+                symbol: '\\mathbb{I}',
+                color: '#818cf8',
+                desc: 'Nombres reals que NO es poden escriure com una fracció de dos enters. Tenen un nombre infinit de xifres decimals no periòdiques (Ex: $\\pi$, $e$, $\\sqrt{2}$, $\\sqrt{3}$).'
+            },
+            'R': {
+                name: 'Nombres REALS',
+                symbol: '\\mathbb{R}',
+                color: '#94a3b8',
+                desc: 'És la unió dels nombres racionals ($\\mathbb{Q}$) i els irracionals ($\\mathbb{I}$). Representen qualsevol punt continu al llarg de la recta real.'
+            }
+        };
+
+        // Preguntes del Joc/Quiz amb format LaTeX
+        const QUIZ_QUESTIONS = [
+            { exprLatex: '7', exprRaw: '7', n: true, z: true, q: true, i: false, r: true, none: false },
+            { exprLatex: '-12', exprRaw: '-12', n: false, z: true, q: true, i: false, r: true, none: false },
+            { exprLatex: '\\frac{3}{4}', exprRaw: '3/4', n: false, z: false, q: true, i: false, r: true, none: false },
+            { exprLatex: '0.\\overline{3}', exprRaw: '0.333...', n: false, z: false, q: true, i: false, r: true, none: false },
+            { exprLatex: '1.2\\overline{34}', exprRaw: '1.2(34)', n: false, z: false, q: true, i: false, r: true, none: false },
+            { exprLatex: '\\sqrt{2}', exprRaw: 'sqrt(2)', n: false, z: false, q: false, i: true, r: true, none: false },
+            { exprLatex: '\\pi', exprRaw: 'pi', n: false, z: false, q: false, i: true, r: true, none: false },
+            { exprLatex: '\\sqrt{16}', exprRaw: 'sqrt(16)', n: true, z: true, q: true, i: false, r: true, none: false },
+            { exprLatex: '\\frac{-15}{3}', exprRaw: '-15/3', n: false, z: true, q: true, i: false, r: true, none: false },
+            { exprLatex: 'e', exprRaw: 'e', n: false, z: false, q: false, i: true, r: true, none: false },
+            { exprLatex: '\\sqrt{-9}', exprRaw: 'sqrt(-9)', n: false, z: false, q: false, i: false, r: false, none: true },
+            { exprLatex: '0', exprRaw: '0', n: true, z: true, q: true, i: false, r: true, none: false },
+            { exprLatex: '\\sqrt[3]{27}', exprRaw: 'cbrt(27)', n: true, z: true, q: true, i: false, r: true, none: false }
+        ];
+
+        let quizIndex = 0;
+        let quizScore = 0;
+        let quizStreak = 0;
+        let currentEqType = 'frac';
+
+        // Switch active visual equation form
+        function setEqType(type) {
+            currentEqType = type;
+            const types = ['int', 'frac', 'pure', 'mixed', 'exact', 'root', 'direct'];
+
+            types.forEach(t => {
+                const btn = document.getElementById(`eq-btn-${t}`);
+                const form = document.getElementById(`eq-form-${t}`);
+                if (t === type) {
+                    if (btn) {
+                        btn.className = "px-2 py-2 bg-red-50 text-[#db0000] border-2 border-[#ff0000] rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5 shadow-sm";
+                    }
+                    if (form) form.classList.remove('hidden');
+                } else {
+                    if (btn) {
+                        btn.className = "px-2 py-2 bg-slate-100 hover:bg-red-50 text-slate-700 hover:text-[#db0000] border border-slate-200 hover:border-red-300 rounded-xl text-xs font-bold transition-all flex flex-col items-center justify-center gap-0.5";
+                    }
+                    if (form) form.classList.add('hidden');
+                }
+            });
+
+            updateEqFromVisualInputs();
+        }
+
+        // Calculate and evaluate active equation input fields
+        function updateEqFromVisualInputs() {
+            let rawStr = '';
+
+            if (currentEqType === 'int') {
+                const val = document.getElementById('eq-int-val').value || '0';
+                rawStr = val;
+            } else if (currentEqType === 'frac') {
+                const num = document.getElementById('eq-frac-num').value || '0';
+                const den = document.getElementById('eq-frac-den').value || '1';
+                rawStr = `${num}/${den}`;
+            } else if (currentEqType === 'pure') {
+                const intVal = document.getElementById('eq-pure-int').value || '0';
+                const period = document.getElementById('eq-pure-period').value || '3';
+                rawStr = `${intVal}.(${period})`;
+            } else if (currentEqType === 'mixed') {
+                const intVal = document.getElementById('eq-mixed-int').value || '0';
+                const ante = document.getElementById('eq-mixed-ante').value || '1';
+                const period = document.getElementById('eq-mixed-period').value || '3';
+                rawStr = `${intVal}.${ante}(${period})`;
+            } else if (currentEqType === 'exact') {
+                const intVal = document.getElementById('eq-exact-int').value || '0';
+                const dec = document.getElementById('eq-exact-dec').value || '0';
+                rawStr = `${intVal}.${dec}`;
+            } else if (currentEqType === 'root') {
+                const idx = parseInt(document.getElementById('eq-root-idx').value) || 2;
+                const val = document.getElementById('eq-root-val').value || '2';
+                rawStr = idx === 2 ? `sqrt(${val})` : `root(${idx}, ${val})`;
+            } else if (currentEqType === 'direct') {
+                rawStr = document.getElementById('number-input').value;
+            }
+
+            const res = parseAndClassify(rawStr);
+            updateUIWithResult(res);
+        }
+
+        function loadPreset(val) {
+            if (val === '3/4') {
+                document.getElementById('eq-frac-num').value = '3';
+                document.getElementById('eq-frac-den').value = '4';
+                setEqType('frac');
+            } else if (val === '0.333...') {
+                document.getElementById('eq-pure-int').value = '0';
+                document.getElementById('eq-pure-period').value = '3';
+                setEqType('pure');
+            } else if (val === '1.2(34)') {
+                document.getElementById('eq-mixed-int').value = '1';
+                document.getElementById('eq-mixed-ante').value = '2';
+                document.getElementById('eq-mixed-period').value = '34';
+                setEqType('mixed');
+            } else if (val === 'sqrt(2)') {
+                document.getElementById('eq-root-idx').value = '2';
+                document.getElementById('eq-root-val').value = '2';
+                setEqType('root');
+            } else if (!isNaN(parseInt(val)) && !val.includes('.') && !val.includes('/')) {
+                document.getElementById('eq-int-val').value = val;
+                setEqType('int');
+            } else {
+                document.getElementById('number-input').value = val;
+                setEqType('direct');
+            }
+        }
+
+        // Renderitzat segur amb KaTeX
+        function renderLatex(elementOrId, latexStr, isDisplay = false) {
+            const el = typeof elementOrId === 'string' ? document.getElementById(elementOrId) : elementOrId;
+            if (!el) return;
+            try {
+                if (window.katex) {
+                    katex.render(latexStr, el, {
+                        throwOnError: false,
+                        displayMode: isDisplay
+                    });
+                } else {
+                    el.textContent = latexStr;
+                }
+            } catch (e) {
+                el.textContent = latexStr;
+            }
+        }
+
+        function triggerMathRender() {
+            if (window.renderMathInElement) {
+                renderMathInElement(document.body, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false},
+                        {left: '\\(', right: '\\)', display: false},
+                        {left: '\\[', right: '\\]', display: true}
+                    ],
+                    throwOnError: false
+                });
+            }
+        }
+
+        /* MODAL HANDLERS */
+        function openHelpModal() {
+            const backdrop = document.getElementById('modal-help-backdrop');
+            const modal = document.getElementById('modal-help');
+            backdrop.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('scale-95', 'opacity-0');
+                modal.classList.add('scale-100', 'opacity-100');
+                triggerMathRender();
+            }, 10);
+        }
+
+        function closeModal() {
+            const backdrop = document.getElementById('modal-help-backdrop');
+            const modal = document.getElementById('modal-help');
+            modal.classList.remove('scale-100', 'opacity-100');
+            modal.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => { backdrop.classList.add('hidden'); }, 200);
+        }
+
+        /**
+         * Core Engine to Parse and Classify Math Expressions with LaTeX output
+         */
+        function parseAndClassify(inputStr) {
+            if (!inputStr || inputStr.trim() === '') {
+                return null;
+            }
+
+            let str = inputStr.trim().toLowerCase();
+            str = str.replace(/,/g, '.');
+
+            // Nombres complexos / arrel negativa
+            if (str.includes('sqrt(-') || str.includes('√-') || str.includes('√ (-')) {
+                let inner = str.replace(/.*sqrt\(|-|\)|√/g, '').trim() || '1';
+                return {
+                    isReal: false,
+                    isRational: false,
+                    isIrrational: false,
+                    isInteger: false,
+                    isNatural: false,
+                    latexVal: `\\sqrt{-${inner}}`,
+                    decimalVal: 'No és real (\\mathbb{C})',
+                    smallestSet: 'NONE',
+                    reasons: {
+                        'R': 'NO: És un nombre imaginari/complex (arrel d\'índex parell d\'un valor negatiu).',
+                        'I': 'NO: No és un nombre real.',
+                        'Q': 'NO: No és un nombre real.',
+                        'Z': 'NO: No és un nombre real.',
+                        'N': 'NO: No és un nombre real.'
+                    }
+                };
+            }
+
+            let numVal = NaN;
+            let isIrrational = false;
+            let isRational = false;
+            let isInteger = false;
+            let isNatural = false;
+            let latexVal = str;
+
+            // Radicals root(n, x), sqrt(x), cbrt(x)
+            if (str.startsWith('root(')) {
+                let parts = str.replace('root(', '').replace(')', '').split(',');
+                if (parts.length === 2) {
+                    let n = parseInt(parts[0].trim());
+                    let x = parseFloat(parts[1].trim());
+                    if (!isNaN(n) && !isNaN(x)) {
+                        if (x < 0 && n % 2 === 0) {
+                            return parseAndClassify(`sqrt(-1)`);
+                        }
+                        numVal = Math.pow(Math.abs(x), 1 / n) * (x < 0 ? -1 : 1);
+                        latexVal = n === 2 ? `\\sqrt{${x}}` : `\\sqrt[${n}]{${x}}`;
+                        
+                        let rounded = Math.round(numVal);
+                        if (Math.abs(Math.pow(rounded, n) - x) < 1e-9) {
+                            numVal = rounded;
+                            isRational = true;
+                        } else {
+                            isIrrational = true;
+                        }
+                    }
+                }
+            } else if (str.startsWith('cbrt(')) {
+                let inner = parseFloat(str.replace('cbrt(', '').replace(')', ''));
+                if (!isNaN(inner)) {
+                    numVal = Math.cbrt(inner);
+                    latexVal = `\\sqrt[3]{${inner}}`;
+                    let rounded = Math.round(numVal);
+                    if (Math.pow(rounded, 3) === inner) {
+                        numVal = rounded;
+                        isRational = true;
+                    } else {
+                        isIrrational = true;
+                    }
+                }
+            } else if (str.startsWith('sqrt(') || str.startsWith('√')) {
+                let innerNumStr = str.replace('sqrt(', '').replace(')', '').replace('√', '').trim();
+                let innerNum = parseFloat(innerNumStr);
+                
+                if (!isNaN(innerNum)) {
+                    if (innerNum < 0) {
+                        return parseAndClassify('sqrt(-1)');
+                    }
+                    numVal = Math.sqrt(innerNum);
+                    latexVal = `\\sqrt{${innerNum}}`;
+                    let sqrtInt = Math.round(numVal);
+                    if (sqrtInt * sqrtInt === innerNum) {
+                        numVal = sqrtInt;
+                        latexVal = sqrtInt.toString();
+                        isRational = true;
+                    } else {
+                        isIrrational = true;
+                    }
+                }
+            } else if (str === 'pi' || str === 'π') {
+                numVal = Math.PI;
+                isIrrational = true;
+                latexVal = '\\pi';
+            } else if (str === 'e') {
+                numVal = Math.E;
+                isIrrational = true;
+                latexVal = 'e';
+            } else if (str.includes('(') && str.includes(')')) {
+                // Decimal periòdic 0.(3) o 1.2(34)
+                let match = str.match(/^([+-]?\d+)?\.?(\d+)?\((\d+)\)$/);
+                if (match) {
+                    let intPart = match[1] || '0';
+                    let antePart = match[2] || '';
+                    let periodPart = match[3];
+
+                    let intNum = parseInt(intPart) || 0;
+                    let anteLen = antePart.length;
+                    let periodLen = periodPart.length;
+
+                    let numFrac = parseInt((antePart + periodPart) || '0') - (antePart ? parseInt(antePart) : 0);
+                    let denFrac = (Math.pow(10, periodLen) - 1) * Math.pow(10, anteLen);
+
+                    numVal = intNum + (numFrac / denFrac);
+                    isRational = true;
+
+                    if (antePart) {
+                        latexVal = `${intPart}.${antePart}\\overline{${periodPart}}`;
+                    } else {
+                        latexVal = `${intPart}.\\overline{${periodPart}}`;
+                    }
+                }
+            } else if (str.includes('...') || str.includes('…')) {
+                let cleanStr = str.replace('...', '').replace('…', '');
+                let parts = cleanStr.split('.');
+                if (parts.length === 2) {
+                    let intPart = parts[0];
+                    let decPart = parts[1];
+                    latexVal = `${intPart}.\\overline{${decPart}}`;
+                    numVal = parseFloat(cleanStr);
+                    isRational = true;
+                }
+            } else if (str.includes('/')) {
+                let parts = str.split('/');
+                if (parts.length === 2) {
+                    let num = parseFloat(parts[0]);
+                    let den = parseFloat(parts[1]);
+                    if (!isNaN(num) && !isNaN(den) && den !== 0) {
+                        numVal = num / den;
+                        isRational = true;
+                        latexVal = `\\frac{${num}}{${den}}`;
+                    }
+                }
+            } else {
+                numVal = parseFloat(str);
+                if (!isNaN(numVal)) {
+                    isRational = true;
+                    latexVal = str;
+                }
+            }
+
+            if (isNaN(numVal)) {
+                return null;
+            }
+
+            // Determine Integer & Natural
+            if (isRational) {
+                if (Math.abs(numVal - Math.round(numVal)) < 1e-10) {
+                    numVal = Math.round(numVal);
+                    isInteger = true;
+                    if (numVal >= 0) {
+                        isNatural = true;
+                    }
+                }
+            }
+
+            // Smallest Set
+            let smallestSet = 'R';
+            if (isNatural) smallestSet = 'N';
+            else if (isInteger) smallestSet = 'Z';
+            else if (isRational) smallestSet = 'Q';
+            else if (isIrrational) smallestSet = 'I';
+
+            let reasons = {
+                'N': isNatural 
+                    ? `SÍ: És un enter no negatiu ($${numVal} \\ge 0$).` 
+                    : (numVal < 0 ? `NO: És un nombre negatiu ($${numVal} < 0$).` : `NO: Té part decimal.`),
+                'Z': (isInteger || isNatural) 
+                    ? `SÍ: És un nombre enter sense decimals ($${numVal} \\in \\mathbb{Z}$).` 
+                    : `NO: Conté part fraccionària o decimal.`,
+                'Q': isRational 
+                    ? `SÍ: Es pot expressar com una fracció exacta d'enters $\\frac{a}{b}$.` 
+                    : `NO: La seva expansió decimal és infinita i no periòdica.`,
+                'I': isIrrational 
+                    ? `SÍ: La seva expansió decimal és infinita no periòdica.` 
+                    : `NO: És un nombre racional (es pot posar com a fracció).`,
+                'R': `SÍ: És un nombre real situat a la recta numèrica.`
+            };
+
+            return {
+                isReal: true,
+                isRational,
+                isIrrational,
+                isInteger,
+                isNatural,
+                latexVal,
+                decimalVal: Number.isInteger(numVal) ? numVal.toString() : numVal.toFixed(6).replace(/\.?0+$/, ''),
+                smallestSet,
+                reasons
+            };
+        }
+
+        /**
+         * Update Classifier UI with evaluated result
+         */
+        function updateUIWithResult(result) {
+            const listContainer = document.getElementById('set-membership-list');
+            const badge = document.getElementById('smallest-set-badge');
+            const parsedValDisp = document.getElementById('display-parsed-val');
+            const decimalValDisp = document.getElementById('display-decimal-val');
+            const targetDisp = document.getElementById('target-equation-display');
+
+            if (!result) {
+                badge.textContent = "Sense Dades";
+                badge.className = "px-3 py-1 bg-slate-400 text-white rounded-full text-xs font-extrabold shadow-sm";
+                parsedValDisp.textContent = "-";
+                decimalValDisp.textContent = "-";
+                if (targetDisp) renderLatex(targetDisp, 'x', true);
+                listContainer.innerHTML = `<div class="text-center py-6 text-slate-400 text-xs italic">Introdueix un nombre a l'editor d'equacions per veure la seva classificació.</div>`;
+                hideMarker();
+                resetDiagramHighlights();
+                return;
+            }
+
+            // Render Target & Parsed LaTeX Displays
+            if (targetDisp) renderLatex(targetDisp, result.latexVal, true);
+            renderLatex('display-parsed-val', result.latexVal);
+            renderLatex('display-decimal-val', result.decimalVal.includes('\\') ? result.decimalVal : `$${result.decimalVal}$`);
+
+            if (!result.isReal) {
+                badge.textContent = "NO ÉS REAL";
+                badge.className = "px-3 py-1 bg-rose-600 text-white rounded-full text-xs font-extrabold shadow-sm animate-pulse";
+                hideMarker();
+            } else {
+                const info = SET_DEFINITIONS[result.smallestSet];
+                badge.innerHTML = `Conjunt Mínim: $${info.symbol}$`;
+                renderLatex(badge, `\\text{Conjunt Mínim: } ${info.symbol}`);
+                badge.className = `px-3 py-1 text-white rounded-full text-xs font-extrabold shadow-sm`;
+                badge.style.backgroundColor = info.color;
+                positionMarker(result.smallestSet, result.latexVal);
+            }
+
+            // Highlight Diagram Sets
+            highlightDiagramSets(result);
+
+            // Render Set Membership Rows with LaTeX
+            const setKeys = ['N', 'Z', 'Q', 'I', 'R'];
+            let html = '';
+
+            setKeys.forEach(key => {
+                const def = SET_DEFINITIONS[key];
+                let belongs = false;
+
+                if (key === 'N') belongs = result.isNatural;
+                else if (key === 'Z') belongs = result.isInteger || result.isNatural;
+                else if (key === 'Q') belongs = result.isRational;
+                else if (key === 'I') belongs = result.isIrrational;
+                else if (key === 'R') belongs = result.isReal;
+
+                const bgStyle = belongs ? 'bg-emerald-50/70 border-emerald-200' : 'bg-slate-50 border-slate-100 opacity-60';
+                const icon = belongs 
+                    ? '<i class="fa-solid fa-circle-check text-emerald-600 text-base"></i>' 
+                    : '<i class="fa-solid fa-circle-xmark text-slate-300 text-base"></i>';
+
+                html += `
+                    <div class="p-2.5 rounded-xl border ${bgStyle} flex items-center justify-between transition-all">
+                        <div class="flex items-center gap-2.5">
+                            ${icon}
+                            <div>
+                                <span class="font-extrabold text-xs text-slate-800">${def.name}</span>
+                                <p class="text-[11px] text-slate-600">${result.reasons[key] || ''}</p>
+                            </div>
+                        </div>
+                        <span class="font-mono text-xs font-bold px-2 py-0.5 rounded ${belongs ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-500'}">
+                            ${belongs ? '∈' : '∉'} $${def.symbol}$
+                        </span>
+                    </div>
+                `;
+            });
+
+            listContainer.innerHTML = html;
+            triggerMathRender();
+            showSetInfo(result.smallestSet);
+        }
+
+        /* SVG DIAGRAM HIGHLIGHTING & ANIMATION */
+        function highlightDiagramSets(result) {
+            resetDiagramHighlights();
+            if (!result || !result.isReal) return;
+
+            const activeSets = [];
+            if (result.isNatural) activeSets.push('N', 'Z', 'Q', 'R');
+            else if (result.isInteger) activeSets.push('Z', 'Q', 'R');
+            else if (result.isRational) activeSets.push('Q', 'R');
+            else if (result.isIrrational) activeSets.push('I', 'R');
+
+            activeSets.forEach(s => {
+                const group = document.getElementById(`svg-set-${s}`);
+                if (group) {
+                    const rect = group.querySelector('rect');
+                    rect.classList.add('set-active');
+                    rect.setAttribute('stroke', SET_DEFINITIONS[s].color);
+                    rect.setAttribute('stroke-width', '3.5');
+                }
+            });
+        }
+
+        function resetDiagramHighlights() {
+            ['N', 'Z', 'Q', 'I', 'R'].forEach(s => {
+                const group = document.getElementById(`svg-set-${s}`);
+                if (group) {
+                    const rect = group.querySelector('rect');
+                    rect.classList.remove('set-active');
+                    if (s === 'N') rect.setAttribute('stroke', '#e879f9');
+                    else if (s === 'Z') rect.setAttribute('stroke', '#10b981');
+                    else if (s === 'Q') rect.setAttribute('stroke', '#0ea5e9');
+                    else if (s === 'I') rect.setAttribute('stroke', '#6366f1');
+                    else if (s === 'R') rect.setAttribute('stroke', '#334155');
+                    rect.setAttribute('stroke-width', '2');
+                }
+            });
+        }
+
+        function positionMarker(setKey, latexVal) {
+            const marker = document.getElementById('svg-marker');
+            const text = document.getElementById('marker-text');
+            if (!marker) return;
+
+            const setCoords = {
+                'N': { x: 230, y: 280 },
+                'Z': { x: 280, y: 190 },
+                'Q': { x: 260, y: 110 },
+                'I': { x: 480, y: 220 },
+                'R': { x: 520, y: 40 }
+            };
+
+            const pos = setCoords[setKey] || { x: 300, y: 200 };
+            marker.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+            marker.classList.remove('opacity-0');
+            marker.classList.add('opacity-100');
+            
+            let label = latexVal.replace(/\\/g, '').replace(/frac|sqrt|overline|cbrt/g, '');
+            if (label.length > 5) label = label.substring(0, 4) + '..';
+            text.textContent = label;
+        }
+
+        function hideMarker() {
+            const marker = document.getElementById('svg-marker');
+            if (marker) {
+                marker.classList.remove('opacity-100');
+                marker.classList.add('opacity-0');
+            }
+        }
+
+        function showSetInfo(setKey) {
+            const info = SET_DEFINITIONS[setKey];
+            if (!info) return;
+
+            document.getElementById('info-set-title').textContent = info.name.replace(/\\mathbb\{([A-Z])\}/g, '$1');
+            document.getElementById('info-set-desc').innerHTML = info.desc;
+            triggerMathRender();
+        }
+
+        function onInputChanged() {
+            const inputVal = document.getElementById('number-input').value;
+            const res = parseAndClassify(inputVal);
+            updateUIWithResult(res);
+        }
+
+        function clearInput() {
+            document.getElementById('number-input').value = '';
+            onInputChanged();
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') {
+                onInputChanged();
+            }
+        }
+
+        function resetApp() {
+            loadPreset('3/4');
+            quizScore = 0;
+            quizStreak = 0;
+            document.getElementById('quiz-score').textContent = '0';
+            document.getElementById('quiz-streak').textContent = '0 🔥';
+            switchTab('classifier');
+        }
+
+        function switchTab(tab) {
+            const secClassifier = document.getElementById('section-classifier');
+            const secQuiz = document.getElementById('section-quiz');
+            const tabClassifier = document.getElementById('tab-classifier');
+            const tabQuiz = document.getElementById('tab-quiz');
+
+            if (tab === 'classifier') {
+                secClassifier.classList.remove('hidden');
+                secQuiz.classList.add('hidden');
+                tabClassifier.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 bg-[#ff0000] text-white shadow-md";
+                tabQuiz.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 text-slate-600 hover:bg-slate-100";
+                triggerMathRender();
+            } else {
+                secClassifier.classList.add('hidden');
+                secQuiz.classList.remove('hidden');
+                tabQuiz.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 bg-[#ff0000] text-white shadow-md";
+                tabClassifier.className = "px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center gap-2 text-slate-600 hover:bg-slate-100";
+                loadQuizQuestion();
+            }
+        }
+
+        function toggleAppMode() {
+            const secClassifier = document.getElementById('section-classifier');
+            if (secClassifier.classList.contains('hidden')) {
+                switchTab('classifier');
+            } else {
+                switchTab('quiz');
+            }
+        }
+
+        /* MODE QUIZ / PRACTICE LOGIC */
+        function loadQuizQuestion() {
+            const q = QUIZ_QUESTIONS[quizIndex];
+            renderLatex('quiz-number-display', q.exprLatex, true);
+            
+            const checkboxes = document.querySelectorAll('.quiz-checkbox');
+            checkboxes.forEach(cb => cb.checked = false);
+
+            const feedback = document.getElementById('quiz-feedback');
+            feedback.classList.add('hidden');
+
+            document.getElementById('btn-quiz-submit').classList.remove('hidden');
+            document.getElementById('btn-quiz-next').classList.add('hidden');
+            triggerMathRender();
+        }
+
+        function checkQuizAnswer() {
+            const q = QUIZ_QUESTIONS[quizIndex];
+            const checkboxes = document.querySelectorAll('.quiz-checkbox');
+            
+            let userAns = { N: false, Z: false, Q: false, I: false, R: false, NONE: false };
+            checkboxes.forEach(cb => {
+                if (cb.checked) userAns[cb.value] = true;
+            });
+
+            let isCorrect = true;
+            if (userAns.N !== q.n) isCorrect = false;
+            if (userAns.Z !== q.z) isCorrect = false;
+            if (userAns.Q !== q.q) isCorrect = false;
+            if (userAns.I !== q.i) isCorrect = false;
+            if (userAns.R !== q.r) isCorrect = false;
+            if (userAns.NONE !== q.none) isCorrect = false;
+
+            const feedback = document.getElementById('quiz-feedback');
+            feedback.classList.remove('hidden');
+
+            if (isCorrect) {
+                quizScore += 10;
+                quizStreak += 1;
+                feedback.className = "p-4 rounded-xl text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200";
+                feedback.innerHTML = `<div class="flex items-center gap-2"><i class="fa-solid fa-circle-check text-emerald-600 text-base"></i><span><strong>Molt bé! Resposta Correcta!</strong></span></div><p class="mt-1 text-emerald-700">Has identificat tots els conjunts per a $${q.exprLatex}$.</p>`;
+            } else {
+                quizStreak = 0;
+                let correctList = [];
+                if (q.n) correctList.push('$\\mathbb{N}$ (Naturals)');
+                if (q.z) correctList.push('$\\mathbb{Z}$ (Enters)');
+                if (q.q) correctList.push('$\\mathbb{Q}$ (Racionals)');
+                if (q.i) correctList.push('$\\mathbb{I}$ (Irracionals)');
+                if (q.r) correctList.push('$\\mathbb{R}$ (Reals)');
+                if (q.none) correctList.push('No és Real');
+
+                feedback.className = "p-4 rounded-xl text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200";
+                feedback.innerHTML = `<div class="flex items-center gap-2"><i class="fa-solid fa-circle-xmark text-rose-600 text-base"></i><span><strong>Gairebé! Resposta Incorrecta.</strong></span></div><p class="mt-1 text-rose-700">Els conjunts correctes per a $${q.exprLatex}$ són: <strong>${correctList.join(', ')}</strong>.</p>`;
+            }
+
+            triggerMathRender();
+
+            document.getElementById('quiz-score').textContent = quizScore;
+            document.getElementById('quiz-streak').textContent = `${quizStreak} 🔥`;
+
+            document.getElementById('btn-quiz-submit').classList.add('hidden');
+            document.getElementById('btn-quiz-next').classList.remove('hidden');
+        }
+
+        function nextQuizQuestion() {
+            quizIndex = (quizIndex + 1) % QUIZ_QUESTIONS.length;
+            loadQuizQuestion();
+        }
+
+        // Initialize App on Window Load
+        window.onload = function() {
+            setTimeout(() => {
+                loadPreset('3/4');
+                triggerMathRender();
+            }, 300);
+        };
+    </script>
+</body>
+</html>
