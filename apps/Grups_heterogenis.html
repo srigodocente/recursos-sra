@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generador de Grups Heterogenis</title>
+    
+    <!-- Tailwind CSS i Paleta Personalitzada (brand) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- FontAwesome 6 i Inter Font -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- jsPDF Library for PDF Generation -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800 min-h-screen flex flex-col justify-between">
+
+    <!-- 🔝 ENCAPÇALAMENT OBLIGATORI -->
+    <header class="bg-indigo-600 border-b border-indigo-600 sticky top-0 z-30 shadow-md no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+            
+            <!-- BLOC 1: Logotip i Títol -->
+            <div class="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-start">
+                <div class="flex items-center gap-3">
+                    <div class="p-2.5 bg-brand-600 rounded-xl text-white shadow-lg shadow-brand-600/30 flex items-center justify-center">
+                        <i class="fa-solid fa-users-rectangle text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg sm:text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
+                            Grups Heterogenis
+                        </h1>
+                    </div>
+                </div>
+
+                <!-- Autor en versió mòbil -->
+                <div class="lg:hidden text-right">
+                    <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener" class="text-xs font-bold text-brand-100 hover:underline">
+                        S. Rigo
+                    </a>
+                </div>
+            </div>
+
+            <!-- BLOC 2: Targeta d'Autoria i Llicència (Centre/Desktop) - PROHIBIT MODIFICAR -->
+            <div class="hidden lg:flex bg-white px-4 py-2 rounded-xl border border-indigo-800 shadow-inner flex-col items-center text-center">
+                <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener font-bold" class="text-xs font-bold text-indigo-800 hover:underline transition-colors flex items-center gap-1.5">
+                    <i class="fa-brands fa-instagram text-indigo-800"></i> Santiago Rigo Aguiló
+                </a>
+                <div class="flex items-center gap-1.5 mt-0.5 text-[10px] text-indigo-800">
+                    <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener" class="hover:underline flex items-center gap-1">
+                        CC BY-NC-ND 4.0
+                        <span class="flex gap-0.5 opacity-100">
+                            <i class="fa-brands fa-creative-commons"></i>
+                            <i class="fa-brands fa-creative-commons-by"></i>
+                            <i class="fa-brands fa-creative-commons-nc"></i>
+                            <i class="fa-brands fa-creative-commons-nd"></i>
+                        </span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- BLOC 3: Botons d'Acció -->
+            <div class="flex items-center gap-2 flex-wrap w-full lg:w-auto justify-end">
+                <button onclick="openHelpModal()" class="bg-indigo-500 hover:bg-indigo-700 text-white border border-indigo-500 rounded-xl px-3 py-2 text-xs font-medium transition-all flex items-center gap-1.5 shadow-sm" title="Informació de l'App">
+                    <i class="fa-solid fa-circle-question text-white text-sm"></i>
+                    <span>Info</span>
+                </button>
+
+                <button onclick="generateHeterogeneousGroups()" class="bg-indigo-500 hover:bg-indigo-700 text-white border border-indigo-500 rounded-xl px-4 py-2 text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-brand-600/20 active:scale-95">
+                    <i class="fa-solid fa-wand-magic-sparkles text-sm"></i>
+                    <span>Generar Grups</span>
+                </button>
+
+                <button onclick="resetData()" class="bg-indigo-500 hover:bg-indigo-700 hover:text-white border border-indigo-500 rounded-xl p-2 text-xs transition-all flex items-center justify-center" title="Restablir dades originals">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full flex-grow">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <!-- Columna Esquerra: Configuració i Entrada de Dades -->
+            <div class="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+                
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-brand-600"></i> Entrada d'Alumnat
+                    </h2>
+                    <span class="text-[11px] font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">Lògica N1+N3</span>
+                </div>
+
+                <!-- Format i Ajuda ràpida -->
+                <div class="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-600 space-y-1.5">
+                    <p class="font-bold text-slate-700 flex items-center gap-1.5">
+                        <i class="fa-solid fa-lightbulb text-amber-500"></i> Format d'entrada:
+                    </p>
+                    <p class="text-[11px] text-slate-500">Introdueix un alumne per línia indicant el nom seguit del nivell (1, 2 o 3):</p>
+                    <div class="flex flex-wrap gap-1.5 pt-1 text-[10px] font-bold">
+                        <span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded border border-emerald-200">1: Alt</span>
+                        <span class="px-2 py-0.5 bg-sky-100 text-sky-800 rounded border border-sky-200">2: Mitjà</span>
+                        <span class="px-2 py-0.5 bg-amber-100 text-amber-800 rounded border border-amber-200">3: Reforç</span>
+                    </div>
+                </div>
+
+                <!-- Àrea de Text -->
+                <div>
+                    <label for="namesList" class="block text-xs font-bold text-slate-700 mb-1">Llista de Noms i Nivells</label>
+                    <textarea id="namesList" rows="10" 
+                        class="w-full p-3 font-mono text-xs border border-slate-300 rounded-xl shadow-sm focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 transition-all bg-slate-50 resize-y"
+                        placeholder="Anna 1&#10;Bernat 2&#10;Carla 3&#10;David 1&#10;Elena 2"></textarea>
+                </div>
+
+                <!-- Ajust de Mida de Grup -->
+                <div class="grid grid-cols-2 gap-3 items-center pt-1">
+                    <div>
+                        <label for="groupSize" class="block text-xs font-bold text-slate-700 mb-1">Membres per Grup</label>
+                        <input type="number" id="groupSize" value="4" min="1" max="15"
+                            class="w-full px-3 py-2 text-center border border-slate-300 rounded-xl focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 font-bold text-sm bg-slate-50">
+                    </div>
+                    <div class="pt-5">
+                        <button onclick="generateHeterogeneousGroups()" class="w-full bg-indigo-500 hover:bg-indigo-700 text-white border border-indigo-500 rounded-xl px-4 py-2 text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20 active:scale-95">
+                            <i class="fa-solid fa-layer-group"></i>
+                            <span>Crear Grups</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Missatge d'Error -->
+                <div id="errorBox" class="hidden p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-medium flex items-center gap-2">
+                    <i class="fa-solid fa-triangle-exclamation text-rose-500 text-sm"></i>
+                    <span id="errorMessage">S'ha produït un error.</span>
+                </div>
+
+            </div>
+
+            <!-- Columna Dreta: Visualització de Resultats -->
+            <div class="lg:col-span-7 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-4">
+                
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3 flex-wrap gap-2">
+                    <div class="flex items-center gap-2">
+                        <h2 class="text-sm font-bold text-slate-800 uppercase tracking-wider">Grups Generats</h2>
+                        <span id="groupCounter" class="text-xs bg-brand-50 text-brand-700 font-semibold px-2 py-0.5 rounded-md hidden">0 grups</span>
+                    </div>
+                    
+                    <div id="exportContainer" class="hidden flex items-center gap-2">
+                        <button id="exportButton" onclick="exportGroupsToFile()" class="bg-indigo-500 hover:bg-indigo-700 text-white border border-indigo-500 rounded-xl px-3 py-2 text-xs font-medium transition-all flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-file-arrow-down text-white"></i>
+                            <span>TXT</span>
+                        </button>
+                        <button id="exportPdfButton" onclick="exportGroupsToPDF()" class="bg-indigo-500 hover:bg-indigo-700 text-white border border-indigo-500 rounded-xl px-3 py-2 text-xs font-medium transition-all flex items-center gap-1.5 shadow-sm">
+                            <i class="fa-solid fa-file-pdf text-white"></i>
+                            <span>PDF</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Contenidor de Grups -->
+                <div id="resultsContainer" class="space-y-3 min-h-[350px] max-h-[600px] overflow-y-auto pr-1 custom-scrollbar">
+                    
+                    <!-- Estat inicial (Buit) -->
+                    <div class="h-64 flex flex-col items-center justify-center text-slate-400 text-center space-y-2">
+                        <div class="p-4 bg-slate-50 rounded-full border border-slate-100">
+                            <i class="fa-solid fa-diagram-project text-3xl text-slate-300"></i>
+                        </div>
+                        <p class="font-semibold text-xs text-slate-500">Cap grup generat encara</p>
+                        <p class="text-[11px] text-slate-400 max-w-xs">Afegeix els alumnes a l'esquerra i fes clic a "Generar Grups" per aplicar l'algorisme compensat.</p>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+    </main>
+
+    <!-- ℹ️ MODAL D'INFORMACIÓ I AJUDA OBLIGATORI -->
+    <div id="modal-help-backdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden no-print transition-all">
+        <div id="modal-help" class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden transform scale-95 opacity-0 transition-all duration-200">
+            
+            <!-- Capçalera -->
+            <div class="bg-indigo-500 px-6 py-4 border-b border-indigo-500 flex items-center justify-between text-white">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-circle-info text-white text-lg"></i>
+                    <h3 class="font-bold text-base">Informació de l'App</h3>
+                </div>
+                <button onclick="closeModal()" class="text-white hover:text-slate-200 transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Cos Dinàmic -->
+            <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto text-xs text-slate-600 leading-relaxed">
+                <p class="text-sm font-medium text-slate-800">
+                    Aquesta aplicació permet organitzar automàticament l'alumnat d'un grup-classe en equips de treball heterogenis i equilibrats seguint criteris pedagògics.
+                </p>
+                
+                <div class="space-y-3 pt-1">
+                    <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="w-5 h-5 bg-brand-100 text-brand-700 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">1</span>
+                        <p><strong>Entrada de dades:</strong> Introdueix la llista de l'alumnat escrivint un nom i el seu nivell (1 = Alt, 2 = Mitjà, 3 = Reforç) per línia.</p>
+                    </div>
+                    <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="w-5 h-5 bg-brand-100 text-brand-700 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">2</span>
+                        <p><strong>Configuració:</strong> Selecciona el nombre de membres desitjats per a cada equip de treball.</p>
+                    </div>
+                    <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="w-5 h-5 bg-brand-100 text-brand-700 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">3</span>
+                        <p><strong>Algorisme heterogeni:</strong> L'aplicació prioritza la parella N1 (Alt) amb N3 (Reforç) per afavorir la tutorització entre iguals i completa els grups de manera equilibrada amb N2 (Mitjà).</p>
+                    </div>
+                    <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="w-5 h-5 bg-brand-100 text-brand-700 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">4</span>
+                        <p><strong>Exportació neta:</strong> Pots descarregar un fitxer de text amb la distribució final dels equips sense mostrar els nivells educatius dels alumnes.</p>
+                    </div>
+                </div>
+
+                <!-- Llicència Interna - INVARIABLE -->
+                <div class="border-t border-slate-200 pt-4 mt-2 flex flex-col items-center text-center gap-1.5 bg-white p-3 rounded-xl">
+                    <span class="font-bold text-indigo-800">
+                       <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener" class="text-indigo-800 hover:underline flex items-center gap-1.5">
+                           <i class="fa-brands fa-instagram text-indigo-800"></i> Santiago Rigo Aguiló
+                       </a>
+                    </span>
+                    <div class="flex items-center gap-1.5 justify-center text-indigo-800">
+                        <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener" class="hover:underline font-semibold flex items-center gap-1">
+                           CC BY-NC-ND 4.0
+                            <span class="flex gap-0.5 text-slate-700">
+                                <i class="fa-brands fa-creative-commons"></i>
+                                <i class="fa-brands fa-creative-commons-by"></i>
+                                <i class="fa-brands fa-creative-commons-nc"></i>
+                                <i class="fa-brands fa-creative-commons-nd"></i>
+                            </span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Peu -->
+            <div class="bg-slate-100 px-6 py-3 border-t border-slate-200 flex justify-end">
+                <button onclick="closeModal()" class="py-2 px-5 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl text-xs transition-all shadow-md">
+                    D'acord!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JS LOGIC -->
+    <script>
+        let currentGroupsData = [];
+
+        // Carrega inicial amb dades d'exemple
+        document.addEventListener('DOMContentLoaded', () => {
+            const defaultData = "Anna 1\nBernat 2\nCarla 3\nDavid 1\nElena 2\nFrancesc 3\nGemma 1\nHèctor 2\nIrene 3\nJordi 2\nLaia 1\nMarc 2";
+            document.getElementById('namesList').value = defaultData;
+        });
+
+        // Funcions del Modal
+        function openHelpModal() {
+            const backdrop = document.getElementById('modal-help-backdrop');
+            const modal = document.getElementById('modal-help');
+            backdrop.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('scale-95', 'opacity-0');
+                modal.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeModal() {
+            const backdrop = document.getElementById('modal-help-backdrop');
+            const modal = document.getElementById('modal-help');
+            modal.classList.remove('scale-100', 'opacity-100');
+            modal.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => { backdrop.classList.add('hidden'); }, 200);
+        }
+
+        // Restablir Dades
+        function resetData() {
+            document.getElementById('namesList').value = '';
+            document.getElementById('groupSize').value = 4;
+            document.getElementById('resultsContainer').innerHTML = `
+                <div class="h-64 flex flex-col items-center justify-center text-slate-400 text-center space-y-2">
+                    <div class="p-4 bg-slate-50 rounded-full border border-slate-100">
+                        <i class="fa-solid fa-diagram-project text-3xl text-slate-300"></i>
+                    </div>
+                    <p class="font-semibold text-xs text-slate-500">Cap grup generat encara</p>
+                    <p class="text-[11px] text-slate-400 max-w-xs">Afegeix els alumnes a l'esquerra i fes clic a "Generar Grups" per aplicar l'algorisme compensat.</p>
+                </div>
+            `;
+            document.getElementById('exportContainer').classList.add('hidden');
+            document.getElementById('groupCounter').classList.add('hidden');
+            hideError();
+            currentGroupsData = [];
+        }
+
+        // Lògica Principal de Generació
+        function generateHeterogeneousGroups() {
+            hideError();
+            const namesListInput = document.getElementById('namesList').value;
+            const groupSizeInput = parseInt(document.getElementById('groupSize').value, 10);
+            const resultsContainer = document.getElementById('resultsContainer');
+            const exportContainer = document.getElementById('exportContainer');
+            const groupCounter = document.getElementById('groupCounter');
+
+            const rawLines = namesListInput.split('\n');
+            const students = [];
+
+            rawLines.forEach(line => {
+                const trimmed = line.trim();
+                if (trimmed.length === 0) return;
+
+                const match = trimmed.match(/^(.+?)(?:[\s,]+([1-3]))?$/);
+                if (match) {
+                    students.push({
+                        name: match[1].trim(),
+                        level: match[2] ? parseInt(match[2], 10) : 0
+                    });
+                } else {
+                    students.push({ name: trimmed, level: 0 });
+                }
+            });
+
+            if (students.length === 0) {
+                showError("Introdueix almenys un nom a la llista.");
+                return;
+            }
+
+            if (isNaN(groupSizeInput) || groupSizeInput <= 0) {
+                showError("La mida del grup ha de ser un número positiu.");
+                return;
+            }
+
+            const groupCount = Math.floor(students.length / groupSizeInput);
+            if (groupCount === 0) {
+                showError(`Calen almenys ${groupSizeInput} alumnes per formar 1 grup.`);
+                return;
+            }
+
+            // Agrupació per buckets de nivell
+            const buckets = { 1: [], 2: [], 3: [], 0: [] };
+            students.forEach(s => buckets[s.level].push(s));
+
+            // Barrejar buckets de forma aleatòria
+            shuffleArray(buckets[1]);
+            shuffleArray(buckets[2]);
+            shuffleArray(buckets[3]);
+            shuffleArray(buckets[0]);
+
+            const groups = Array.from({ length: groupCount }, () => []);
+
+            // FASE 1: Distribuir Nivell 1 (Alt)
+            buckets[1].forEach((student, index) => {
+                groups[index % groupCount].push(student);
+            });
+
+            // FASE 2: Distribuir Nivell 3 (Reforç - aparellar amb N1)
+            buckets[3].forEach((student, index) => {
+                groups[index % groupCount].push(student);
+            });
+
+            // FASE 3: Omplir amb la resta (N2 + Altres)
+            const remainingStudents = [...buckets[2], ...buckets[0]];
+            remainingStudents.forEach(student => {
+                let minSize = Infinity;
+                let targetIndex = 0;
+                for (let i = 0; i < groupCount; i++) {
+                    if (groups[i].length < minSize) {
+                        minSize = groups[i].length;
+                        targetIndex = i;
+                    }
+                }
+                groups[targetIndex].push(student);
+            });
+
+            currentGroupsData = groups;
+            displayGroups(groups);
+
+            exportContainer.classList.remove('hidden');
+            groupCounter.textContent = `${groups.length} ${groups.length === 1 ? 'grup' : 'grups'}`;
+            groupCounter.classList.remove('hidden');
+        }
+
+        // Mostrar els grups generats
+        function displayGroups(groups) {
+            const resultsContainer = document.getElementById('resultsContainer');
+            resultsContainer.innerHTML = '';
+
+            groups.forEach((group, index) => {
+                const groupCard = document.createElement('div');
+                groupCard.className = 'bg-slate-50 rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow';
+
+                // Capçalera del grup
+                const header = document.createElement('div');
+                header.className = 'flex items-center justify-between border-b border-slate-200 pb-2 mb-3';
+                
+                header.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <div class="w-6 h-6 bg-brand-100 text-brand-700 font-bold rounded-lg flex items-center justify-center text-xs">
+                            ${index + 1}
+                        </div>
+                        <h3 class="font-bold text-xs text-slate-800">Equip ${index + 1}</h3>
+                    </div>
+                    <span class="text-[10px] font-semibold text-slate-400 bg-white px-2 py-0.5 rounded border border-slate-200">
+                        ${group.length} alumnes
+                    </span>
+                `;
+
+                // Llista d'alumnes
+                const studentList = document.createElement('div');
+                studentList.className = 'grid grid-cols-1 sm:grid-cols-2 gap-2';
+
+                group.forEach(student => {
+                    const badgeInfo = getLevelBadgeInfo(student.level);
+                    const studentItem = document.createElement('div');
+                    studentItem.className = 'flex items-center justify-between p-2 bg-white rounded-lg border border-slate-100 text-xs';
+                    
+                    studentItem.innerHTML = `
+                        <span class="font-medium text-slate-700 truncate">${student.name}</span>
+                        <span class="text-[9px] font-bold px-1.5 py-0.5 rounded ${badgeInfo.style}">
+                            ${badgeInfo.label}
+                        </span>
+                    `;
+                    studentList.appendChild(studentItem);
+                });
+
+                groupCard.appendChild(header);
+                groupCard.appendChild(studentList);
+                resultsContainer.appendChild(groupCard);
+            });
+        }
+
+        // Info visual segons el nivell
+        function getLevelBadgeInfo(level) {
+            switch(level) {
+                case 1:
+                    return { label: 'Alt', style: 'bg-emerald-100 text-emerald-800 border border-emerald-200' };
+                case 2:
+                    return { label: 'Mitjà', style: 'bg-sky-100 text-sky-800 border border-sky-200' };
+                case 3:
+                    return { label: 'Reforç', style: 'bg-amber-100 text-amber-800 border border-amber-200' };
+                default:
+                    return { label: 'Sense nivell', style: 'bg-slate-100 text-slate-500 border border-slate-200' };
+            }
+        }
+
+        // Exportació en TXT Netejat (sense indicar nivells)
+        function exportGroupsToFile() {
+            if (currentGroupsData.length === 0) return;
+
+            const customTitle = prompt("Introdueix un nom per al fitxer TXT (sense extensió):", "equips_heterogenis");
+            if (customTitle === null) return; // Cancel·lat per l'usuari
+            const fileName = customTitle.trim() !== "" ? customTitle.trim() : "equips_heterogenis";
+
+            let textContent = `${fileName.toUpperCase()}\n${'='.repeat(fileName.length)}\n\n`;
+            currentGroupsData.forEach((group, index) => {
+                textContent += `EQUIP ${index + 1} (${group.length} alumnes):\n`;
+                group.forEach(student => {
+                    textContent += ` - ${student.name}\n`;
+                });
+                textContent += "\n---------------------------------\n\n";
+            });
+            textContent += `Data de generació: ${new Date().toLocaleDateString('ca-ES')}`;
+
+            const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `${fileName}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // Exportació en PDF (sense indicar nivells)
+        function exportGroupsToPDF() {
+            if (currentGroupsData.length === 0) return;
+
+            const customTitle = prompt("Introdueix un nom per al fitxer PDF (sense extensió):", "equips_heterogenis");
+            if (customTitle === null) return; // Cancel·lat per l'usuari
+            const fileName = customTitle.trim() !== "" ? customTitle.trim() : "equips_heterogenis";
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            const margin = 15;
+            let y = 20;
+
+            // Títol
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "bold");
+            doc.text(fileName, margin, y);
+            y += 8;
+
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "normal");
+            doc.setTextColor(100);
+            doc.text(`Data de generació: ${new Date().toLocaleDateString('ca-ES')}`, margin, y);
+            y += 12;
+
+            doc.setDrawColor(200);
+            doc.line(margin, y, 210 - margin, y);
+            y += 10;
+
+            // Renderitzat de grups
+            currentGroupsData.forEach((group, index) => {
+                if (y > 260) {
+                    doc.addPage();
+                    y = 20;
+                }
+
+                doc.setFontSize(12);
+                doc.setFont("helvetica", "bold");
+                doc.setTextColor(49, 46, 129); // brand-900 color
+                doc.text(`Equip ${index + 1} (${group.length} alumnes)`, margin, y);
+                y += 6;
+
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "normal");
+                doc.setTextColor(50);
+
+                group.forEach(student => {
+                    if (y > 275) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    doc.text(`•  ${student.name}`, margin + 5, y);
+                    y += 5.5;
+                });
+
+                y += 6;
+            });
+
+            doc.save(`${fileName}.pdf`);
+        }
+
+        // Utilitats
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        function showError(msg) {
+            const errorBox = document.getElementById('errorBox');
+            const errorMessage = document.getElementById('errorMessage');
+            errorMessage.textContent = msg;
+            errorBox.classList.remove('hidden');
+        }
+
+        function hideError() {
+            document.getElementById('errorBox').classList.add('hidden');
+        }
+    </script>
+</body>
+</html>
