@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="ca" class="h-full bg-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calendari Escolar</title>
+    
+    <!-- Tailwind CSS i Paleta Personalitzada (brand) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Segoe UI', 'Arial', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- FontAwesome 6 i Inter Font -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        /* Variables CSS Globals per a personalització de colors */
+        :root {
+            --cal-border-color: #cbd5e1;
+            --cal-header-bg: #f1f5f9;
+            --cal-weekend-bg: #f8fafc;
+            --cal-today-border: #3b82f6;
+            --cal-text-color: #1e293b;
+        }
+
+        /* Estils d'impressió millorats per a A4 Horitzontal */
+        @page {
+            size: A4 landscape;
+            margin: 8mm;
+        }
+
+        @media print {
+            /* Ocultar tots els elements d'interfície */
+            .no-print, header, footer, #control-panel, #modal-help-backdrop {
+                display: none !important;
+            }
+
+            html, body {
+                background: white !important;
+                color: black !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100% !important;
+                height: 100% !important;
+                font-family: 'Segoe UI', Arial, sans-serif !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            main {
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                height: 100% !important;
+            }
+
+            /* Eliminar espaiat vertical entre mesos al imprimir */
+            main > * + *, #calendar-container > * + * {
+                margin-top: 0 !important;
+            }
+
+            #calendar-container {
+                width: 100% !important;
+                height: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+
+            /* Forçar ruptura de pàgina i centrar exactament cada mes */
+            .month-page {
+                page-break-after: always !important;
+                break-after: page !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+                height: 190mm !important; /* Espai útil A4 horitzontal amb 8mm de marge */
+                max-height: 190mm !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important; /* Centrat vertical */
+                align-items: center !important;     /* Centrat horitzontal */
+                box-shadow: none !important;
+                border: none !important;
+                padding: 0 !important;
+                margin: 0 auto !important;
+                background: white !important;
+                overflow: hidden !important;
+            }
+
+            /* Capçalera del mes adaptada i centrada */
+            .month-page > div:first-child {
+                width: 100% !important;
+                margin-bottom: 0.5rem !important;
+                padding-bottom: 0.5rem !important;
+            }
+
+            /* Taula ocupant l'amplada i ajustada */
+            .calendar-table {
+                width: 100% !important;
+                flex: 1 1 auto !important;
+                height: auto !important;
+                border-collapse: collapse !important;
+                table-layout: fixed !important;
+            }
+
+            .calendar-table th {
+                background-color: var(--cal-header-bg) !important;
+                border: 1px solid var(--cal-border-color) !important;
+                color: #0f172a !important;
+                font-weight: 700 !important;
+                font-size: 10pt !important;
+                text-transform: uppercase !important;
+                padding: 4px 0 !important;
+                text-align: center !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .calendar-table td {
+                border: 1px solid var(--cal-border-color) !important;
+                vertical-align: top !important;
+                position: relative !important;
+                padding: 4px !important;
+            }
+
+            .calendar-table td.weekend {
+                background-color: var(--cal-weekend-bg) !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+
+            .day-number {
+                font-size: 11pt !important;
+                font-weight: 800 !important;
+                color: #0f172a !important;
+            }
+
+            .today-cell {
+                outline: 2px solid var(--cal-today-border) !important;
+                outline-offset: -2px !important;
+            }
+        }
+
+        /* Estils de pantalla normal */
+        .month-page-screen {
+            background: white;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            border: 1px solid #e2e8f0;
+            border-radius: 1rem;
+            aspect-ratio: 1.414 / 1; /* Ràtio A4 Horitzontal */
+            display: flex;
+            flex-direction: column;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            overflow: hidden;
+        }
+
+        .screen-table {
+            width: 100%;
+            height: 100%;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+
+        .screen-table th {
+            background-color: #f8fafc;
+            border: 1px solid #cbd5e1;
+            color: #334155;
+            font-weight: 700;
+            font-size: 0.85rem;
+            padding: 0.5rem;
+            text-align: center;
+        }
+
+        .screen-table td {
+            border: 1px solid #cbd5e1;
+            vertical-align: top;
+            position: relative;
+            padding: 0.4rem;
+            height: auto;
+        }
+
+        .screen-table td.weekend {
+            background-color: #f8fafc;
+        }
+
+        .screen-table td.empty-day {
+            background-color: #fafafa;
+            opacity: 0.5;
+        }
+
+        .today-highlight {
+            border: 2px solid #3b82f6 !important;
+            background-color: #eff6ff !important;
+        }
+    </style>
+</head>
+<body class="min-h-full flex flex-col font-sans text-slate-800 antialiased">
+
+    <!-- ENCAPÇALAMENT OBLIGATORI -->
+    <header class="w-full bg-indigo-600 text-white shadow-xl z-30 px-4 sm:px-6 py-4 border-b border-slate-800 no-print">
+        <div class="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between gap-4">
+            
+            <!-- BLOC 1: Logotip i Títol -->
+            <div class="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-start">
+                <div class="flex items-center gap-3">
+                    <div class="p-2.5 bg-brand-600 rounded-xl text-white shadow-lg shadow-brand-600/30 flex items-center justify-center">
+                        <i class="fa-solid fa-calendar-days text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg sm:text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
+                            Calendari escolar
+                        </h1>
+                    </div>
+                </div>
+
+                <!-- Autor en versió mòbil -->
+                <div class="lg:hidden text-right">
+                    <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener" class="text-xs font-bold text-brand-100 hover:underline">
+                        S. Rigo
+                    </a>
+                </div>
+            </div>
+
+            <!-- BLOC 2: Targeta d'Autoria i Llicència (Centre/Desktop) - PROHIBIT MODIFICAR -->
+            <div class="hidden lg:flex bg-white px-4 py-2 rounded-xl border border-indigo-800 shadow-inner flex-col items-center text-center">
+                <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener" class="text-xs font-bold text-indigo-800 hover:underline transition-colors flex items-center gap-1.5">
+                    <i class="fa-brands fa-instagram text-indigo-800"></i> Santiago Rigo Aguiló
+                </a>
+                <div class="flex items-center gap-1.5 mt-0.5 text-[10px] text-indigo-800">
+                    <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener" class="hover:underline flex items-center gap-1">
+                        CC BY-NC-ND 4.0
+                        <span class="flex gap-0.5 opacity-100">
+                            <i class="fa-brands fa-creative-commons"></i>
+                            <i class="fa-brands fa-creative-commons-by"></i>
+                            <i class="fa-brands fa-creative-commons-nc"></i>
+                            <i class="fa-brands fa-creative-commons-nd"></i>
+                        </span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- BLOC 3: Botons d'Acció -->
+            <div class="flex items-center gap-2 flex-wrap w-full lg:w-auto justify-end">
+                <!-- Botó Info -->
+                <button onclick="openHelpModal()" class="bg-indigo-500 hover:bg-indigo-700 text-white border border-indigo-500 rounded-xl px-3 py-2 text-xs font-medium transition-all flex items-center gap-1.5 shadow-sm" title="Informació de l'App">
+                    <i class="fa-solid fa-circle-question text-white text-sm"></i>
+                    <span>Info</span>
+                </button>
+
+                <!-- Botó Principal: Imprimir -->
+                <button onclick="printCalendar()" class="bg-indigo-500 hover:bg-indigo-700 text-white border border-indigo-500 rounded-xl px-4 py-2 text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-brand-600/20 active:scale-95">
+                    <i class="fa-solid fa-print text-sm"></i>
+                    <span>Imprimir</span>
+                </button>
+
+                <!-- Botó Reset -->
+                <button onclick="resetCalendar()" class="bg-indigo-500 hover:bg-indigo-700 hover:text-white border border-indigo-500 rounded-xl p-2 text-xs transition-all flex items-center justify-center" title="Restablir dades originals">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- CONTINGUT PRINCIPAL / PANNELL DE CONTROL -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 space-y-6">
+        
+        <!-- Targeta de Paràmetres (no-print) -->
+        <section id="control-panel" class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 no-print transition-all">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-6">
+                
+                <div class="space-y-2 flex-1">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-sliders text-brand-600"></i>
+                        <h2 class="text-lg font-bold text-slate-800">Paràmetres del curs escolar</h2>
+                    </div>
+                    <p class="text-xs text-slate-500">
+                        Introdueix el curs acadèmic en format <code class="bg-slate-100 px-1.5 py-0.5 rounded text-brand-700 font-semibold">2026-2027</code> per generar automàticament els 10 mesos (de Setembre a Juny).
+                    </p>
+                </div>
+
+                <!-- Formulari d'Entrada -->
+                <div class="flex flex-col sm:flex-row items-stretch sm:items-end gap-3 w-full md:w-auto">
+                    <div class="space-y-1">
+                        <label for="courseInput" class="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                            Curs Escolar
+                        </label>
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                <i class="fa-solid fa-graduation-cap text-sm"></i>
+                            </div>
+                            <input 
+                                type="text" 
+                                id="courseInput" 
+                                value="2026-2027" 
+                                placeholder="Ex: 2026-2027"
+                                class="w-full sm:w-44 pl-9 pr-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 font-semibold text-slate-800 outline-none transition-all"
+                                onkeyup="if(event.key==='Enter') generateSchoolCalendar()"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="space-y-1">
+                        <label for="centerNameInput" class="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                            Nom del Centre / Nota (Opcional)
+                        </label>
+                        <input 
+                            type="text" 
+                            id="centerNameInput" 
+                            placeholder="Ex: CEIP Llevant / Curs Docent"
+                            class="w-full sm:w-56 px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 text-slate-800 outline-none transition-all"
+                            onkeyup="if(event.key==='Enter') generateSchoolCalendar()"
+                        >
+                    </div>
+
+                    <div class="space-y-1">
+                        <label for="weekTypeInput" class="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                            Dies de la Setmana
+                        </label>
+                        <div class="relative">
+                            <select 
+                                id="weekTypeInput" 
+                                class="w-full sm:w-48 px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:ring-2 focus:ring-brand-500 focus:border-brand-500 font-semibold text-slate-800 outline-none transition-all appearance-none pr-8 cursor-pointer"
+                                onchange="generateSchoolCalendar()"
+                            >
+                                <option value="7" selected>Setmana completa (7 dies)</option>
+                                <option value="5">Només feiners (5 dies)</option>
+                            </select>
+                            <div class="absolute inset-y-0 right-0 flex items-center px-2.5 pointer-events-none text-slate-400">
+                                <i class="fa-solid fa-chevron-down text-xs"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button 
+                        onclick="generateSchoolCalendar()" 
+                        class="bg-indigo-500 hover:bg-indigo-700 text-white border border-indigo-500 rounded-xl px-5 py-2 text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20 active:scale-95 h-[38px]"
+                    >
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                        <span>Generar calendari</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Missatge d'error o avís -->
+            <div id="error-message" class="hidden mt-4 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs flex items-center gap-2">
+                <i class="fa-solid fa-circle-exclamation text-rose-500"></i>
+                <span id="error-text">Format de curs no vàlid. Utilitza el format AAAA-AAAA (Ex: 2026-2027).</span>
+            </div>
+        </section>
+
+        <!-- Secció d'informació ràpida per a la vista en pantalla (no-print) -->
+        <div class="flex items-center justify-between text-xs text-slate-500 px-2 no-print">
+            <span id="calendar-summary-text" class="font-semibold text-slate-700">
+                <i class="fa-solid fa-file-pdf text-brand-600 mr-1"></i> Previsualització de 10 pàgines (A4 Horitzontal)
+            </span>
+            <div class="flex items-center gap-4">
+                <span class="flex items-center gap-1.5">
+                    <span class="w-3 h-3 bg-slate-100 border border-slate-300 rounded"></span> Dies feiners
+                </span>
+                <span id="weekend-legend-item" class="flex items-center gap-1.5">
+                    <span class="w-3 h-3 bg-slate-200 border border-slate-300 rounded"></span> Cap de setmana
+                </span>
+            </div>
+        </div>
+
+        <!-- CONTENIDOR DELS 10 MESOS DEL CALENDARI -->
+        <div id="calendar-container" class="space-y-8">
+            <!-- Els 10 mesos es generen de manera dinàmica mitjançant JavaScript -->
+        </div>
+
+    </main>
+
+    <!-- MODAL D'INFORMACIÓ I AJUDA OBLIGATORI -->
+    <div id="modal-help-backdrop" class="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden no-print transition-all">
+        <div id="modal-help" class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden transform scale-95 opacity-0 transition-all duration-200">
+            
+            <!-- Capçalera -->
+            <div class="bg-indigo-500 px-6 py-4 border-b border-indigo-500 flex items-center justify-between text-white">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-circle-info text-white text-lg"></i>
+                    <h3 class="font-bold text-base">Informació de l'App</h3>
+                </div>
+                <button onclick="closeModal()" class="text-white hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Cos Dinàmic -->
+            <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto text-xs text-slate-600 leading-relaxed">
+                <p class="text-sm font-medium text-slate-800">
+                    Aquesta aplicació permet generar automàticament un calendari escolar personalitzat de 10 mesos (de setembre a juny) dissenyat específicament per fer anotacions manuscrites i per a una impressió perfecta en format A4 horitzontal.
+                </p>
+                
+                <div class="space-y-3 pt-1">
+                    <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="w-5 h-5 bg-brand-100 text-brand-700 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">1</span>
+                        <p><strong>Escriu el curs i opcions:</strong> Introdueix el curs (ex: <code class="font-mono font-bold text-brand-600">2026-2027</code>) i tria si vols incloure els caps de setmana o només els 5 dies feiners.</p>
+                    </div>
+                    <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="w-5 h-5 bg-brand-100 text-brand-700 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">2</span>
+                        <p><strong>Genera el calendari:</strong> Fes clic a <em>"Generar calendari"</em> per recalcular automàticament la distribució de les cel·les.</p>
+                    </div>
+                    <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="w-5 h-5 bg-brand-100 text-brand-700 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">3</span>
+                        <p><strong>Imprimeix o descarrega en PDF:</strong> Prem el botó <em>"Imprimir"</em> per obtenir 10 pàgines A4 horitzontals impecables.</p>
+                    </div>
+                </div>
+
+                <!-- Llicència Interna - INVARIABLE -->
+                <div class="border-t border-slate-200 pt-4 mt-2 flex flex-col items-center text-center gap-1.5 bg-white p-3 rounded-xl">
+                    <span class="font-bold text-indigo-800">
+                       <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener" class="text-indigo-800 hover:underline flex items-center gap-1.5">
+                           <i class="fa-brands fa-instagram text-indigo-800"></i> Santiago Rigo Aguiló
+                       </a>
+                    </span>
+                    <div class="flex items-center gap-1.5 justify-center text-indigo-800">
+                        <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener" class="hover:underline font-semibold flex items-center gap-1">
+                           CC BY-NC-ND 4.0
+                            <span class="flex gap-0.5 text-slate-700">
+                                <i class="fa-brands fa-creative-commons"></i>
+                                <i class="fa-brands fa-creative-commons-by"></i>
+                                <i class="fa-brands fa-creative-commons-nc"></i>
+                                <i class="fa-brands fa-creative-commons-nd"></i>
+                            </span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Peu -->
+            <div class="bg-slate-100 px-6 py-3 border-t border-slate-200 flex justify-end">
+                <button onclick="closeModal()" class="py-2 px-5 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl text-xs transition-all shadow-md">
+                    D'acord!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /**
+         * GENERADOR DE CALENDARI ESCOLAR - LÒGICA JAVASCRIPT NATIVA (ES6)
+         * Autor: Santiago Rigo Aguiló
+         */
+
+        // Noms dels mesos en català segons requeriments
+        const MONTH_NAMES_CAT = [
+            'Gener', 'Febrer', 'Març', 'Abril', 'Maig', 'Juny',
+            'Juliol', 'Agost', 'Setembre', 'Octubre', 'Novembre', 'Desembre'
+        ];
+
+        // Noms dels dies de la setmana començant en Dilluns
+        const WEEKDAY_NAMES_CAT = [
+            'Dilluns', 'Dimarts', 'Dimecres', 'Dijous', 'Divendres', 'Dissabte', 'Diumenge'
+        ];
+
+        // Estrutura de la seqüència dels 10 mesos escolars:
+        // Mes 8 = Setembre (any 1), 9 = Octubre (any 1), 10 = Novembre (any 1), 11 = Desembre (any 1)
+        // Mes 0 = Gener (any 2), 1 = Febrer (any 2), 2 = Març (any 2), 3 = Abril (any 2), 4 = Maig (any 2), 5 = Juny (any 2)
+        const SCHOOL_MONTHS_CONFIG = [
+            { monthIndex: 8, yearOffset: 0 },  // Setembre
+            { monthIndex: 9, yearOffset: 0 },  // Octubre
+            { monthIndex: 10, yearOffset: 0 }, // Novembre
+            { monthIndex: 11, yearOffset: 0 }, // Desembre
+            { monthIndex: 0, yearOffset: 1 },  // Gener
+            { monthIndex: 1, yearOffset: 1 },  // Febrer
+            { monthIndex: 2, yearOffset: 1 },  // Març
+            { monthIndex: 3, yearOffset: 1 },  // Abril
+            { monthIndex: 4, yearOffset: 1 },  // Maig
+            { monthIndex: 5, yearOffset: 1 }   // Juny
+        ];
+
+        /**
+         * Inicialització al carregar la pàgina
+         */
+        window.addEventListener('DOMContentLoaded', () => {
+            generateSchoolCalendar();
+        });
+
+        /**
+         * Obre el modal d'ajuda amb animació fluida
+         */
+        function openHelpModal() {
+            const backdrop = document.getElementById('modal-help-backdrop');
+            const modal = document.getElementById('modal-help');
+            backdrop.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('scale-95', 'opacity-0');
+                modal.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        /**
+         * Tanca el modal d'ajuda
+         */
+        function closeModal() {
+            const backdrop = document.getElementById('modal-help-backdrop');
+            const modal = document.getElementById('modal-help');
+            modal.classList.remove('scale-100', 'opacity-100');
+            modal.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => { backdrop.classList.add('hidden'); }, 200);
+        }
+
+        /**
+         * Restableix el curs i neteja els camps
+         */
+        function resetCalendar() {
+            document.getElementById('courseInput').value = '2026-2027';
+            document.getElementById('centerNameInput').value = '';
+            document.getElementById('weekTypeInput').value = '7';
+            document.getElementById('error-message').classList.add('hidden');
+            generateSchoolCalendar();
+        }
+
+        /**
+         * Executa la comanda d'impressió del navegador
+         */
+        function printCalendar() {
+            window.print();
+        }
+
+        /**
+         * Mètode principal per validar l'entrada i generar els 10 mesos del calendari
+         */
+        function generateSchoolCalendar() {
+            const inputVal = document.getElementById('courseInput').value.trim();
+            const centerName = document.getElementById('centerNameInput').value.trim();
+            const weekType = parseInt(document.getElementById('weekTypeInput').value, 10);
+            const errorDiv = document.getElementById('error-message');
+            const container = document.getElementById('calendar-container');
+
+            // Mostrar/ocultar llegenda de cap de setmana segons el tipus de setmana
+            const weekendLegendItem = document.getElementById('weekend-legend-item');
+            if (weekendLegendItem) {
+                weekendLegendItem.style.display = weekType === 5 ? 'none' : 'flex';
+            }
+
+            // Validació del format del curs (ex: "2026-2027" o "2026/2027")
+            const yearMatch = inputVal.match(/^(\d{4})[-/](\d{4})$/);
+
+            if (!yearMatch) {
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            errorDiv.classList.add('hidden');
+
+            const startYear = parseInt(yearMatch[1], 10);
+            const endYear = parseInt(yearMatch[2], 10);
+
+            // Validació lògica d'anys consecutius
+            if (endYear !== startYear + 1) {
+                document.getElementById('error-text').textContent = "El segon any ha de ser exactament el següent al primer (Ex: 2026-2027).";
+                errorDiv.classList.remove('hidden');
+                return;
+            }
+
+            const courseText = `Curs ${startYear}-${endYear}`;
+            container.innerHTML = ''; // Netejar el contenidor
+
+            // Generar els 10 mesos escolars
+            SCHOOL_MONTHS_CONFIG.forEach((config) => {
+                const currentYear = config.yearOffset === 0 ? startYear : endYear;
+                const monthHTML = buildMonthPage(currentYear, config.monthIndex, courseText, centerName, weekType);
+                container.appendChild(monthHTML);
+            });
+
+            // Actualitzar resum de la pàgina
+            const modeText = weekType === 5 ? 'dies feiners' : 'setmana completa';
+            document.getElementById('calendar-summary-text').innerHTML = `
+                <i class="fa-solid fa-calendar-check text-brand-600 mr-1"></i>
+                Calendari generat amb èxit per al <strong>${courseText}</strong> (${modeText}, 10 mesos)
+            `;
+        }
+
+        /**
+         * Calcula el primer dia de la setmana per a un mes determinat.
+         * Retorna: 0 per Dilluns, 1 per Dimarts, ..., 6 per Diumenge.
+         * @param {number} year 
+         * @param {number} monthIndex (0 - 11)
+         * @returns {number}
+         */
+        function getFirstDayOfMonth(year, monthIndex) {
+            const date = new Date(year, monthIndex, 1);
+            const day = date.getDay(); // 0 = Diumenge, 1 = Dilluns, ...
+            return (day + 6) % 7; // Adaptar per a que 0 sigui Dilluns
+        }
+
+        /**
+         * Retorna el número total de dies que té un mes (considera anys de traspàs)
+         * @param {number} year 
+         * @param {number} monthIndex (0 - 11)
+         * @returns {number}
+         */
+        function getDaysInMonth(year, monthIndex) {
+            return new Date(year, monthIndex + 1, 0).getDate();
+        }
+
+        /**
+         * Comprova si una data és el dia d'avui
+         * @param {number} year 
+         * @param {number} monthIndex 
+         * @param {number} day 
+         * @returns {boolean}
+         */
+        function isTodayDate(year, monthIndex, day) {
+            const today = new Date();
+            return today.getFullYear() === year && 
+                   today.getMonth() === monthIndex && 
+                   today.getDate() === day;
+        }
+
+        /**
+         * Construeix el node DOM corresponent a la pàgina d'un mes (A4 Horitzontal)
+         * @param {number} year 
+         * @param {number} monthIndex 
+         * @param {string} courseText 
+         * @param {string} centerName 
+         * @param {number} weekType (5 o 7)
+         * @returns {HTMLElement}
+         */
+        function buildMonthPage(year, monthIndex, courseText, centerName, weekType = 7) {
+            const pageDiv = document.createElement('div');
+            pageDiv.className = 'month-page month-page-screen';
+
+            const monthName = MONTH_NAMES_CAT[monthIndex];
+            const firstDayIndex = getFirstDayOfMonth(year, monthIndex);
+            const totalDays = getDaysInMonth(year, monthIndex);
+
+            const weekdays = WEEKDAY_NAMES_CAT.slice(0, weekType);
+            const totalWeeks = Math.ceil((firstDayIndex + totalDays) / 7);
+
+            // Filtrar quina de les setmanes conté dies vàlids en el mode triat
+            const validRows = [];
+            for (let row = 0; row < totalWeeks; row++) {
+                let hasDaysInRow = false;
+                for (let col = 0; col < weekType; col++) {
+                    const dayNum = row * 7 + col - firstDayIndex + 1;
+                    if (dayNum >= 1 && dayNum <= totalDays) {
+                        hasDaysInRow = true;
+                        break;
+                    }
+                }
+                if (hasDaysInRow) {
+                    validRows.push(row);
+                }
+            }
+
+            const numRows = validRows.length;
+
+            // Capçalera de la pàgina del mes
+            const headerHTML = `
+                <div class="flex items-end justify-between border-b-2 border-slate-800 pb-3 mb-3">
+                    <div>
+                        <h2 class="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight uppercase">
+                            ${monthName} <span class="text-brand-600 font-extrabold">${year}</span>
+                        </h2>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-sm font-bold text-slate-700 bg-slate-100 px-3 py-1 rounded-lg border border-slate-200">
+                            ${courseText}
+                        </span>
+                        ${centerName ? `<p class="text-xs font-semibold text-slate-500 mt-1">${escapeHTML(centerName)}</p>` : ''}
+                    </div>
+                </div>
+            `;
+
+            // Construcció de la taula
+            let tableHTML = `
+                <table class="calendar-table screen-table flex-1">
+                    <thead>
+                        <tr>
+                            ${weekdays.map(day => `<th>${day}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+
+            validRows.forEach((row) => {
+                tableHTML += `<tr style="height: ${100 / numRows}%;">`;
+
+                for (let col = 0; col < weekType; col++) {
+                    const isWeekend = (col === 5 || col === 6);
+                    const dayCounter = row * 7 + col - firstDayIndex + 1;
+
+                    if (dayCounter < 1 || dayCounter > totalDays) {
+                        // Cella buida fora del mes
+                        tableHTML += `<td class="empty-day ${isWeekend ? 'weekend' : ''}"></td>`;
+                    } else {
+                        // Dia vàlid del mes
+                        const isToday = isTodayDate(year, monthIndex, dayCounter);
+                        const todayClass = isToday ? 'today-highlight today-cell' : '';
+                        const weekendClass = isWeekend ? 'weekend' : '';
+
+                        tableHTML += `
+                            <td class="${weekendClass} ${todayClass}">
+                                <div class="flex justify-between items-start w-full">
+                                    ${isToday ? '<span class="text-[9px] font-bold text-blue-600 bg-blue-100 px-1 rounded no-print">AVUI</span>' : '<span></span>'}
+                                    <span class="day-number font-extrabold text-sm sm:text-base text-slate-900 ml-auto">
+                                        ${dayCounter}
+                                    </span>
+                                </div>
+                                <div class="h-full w-full"></div>
+                            </td>
+                        `;
+                    }
+                }
+
+                tableHTML += `</tr>`;
+            });
+
+            tableHTML += `
+                    </tbody>
+                </table>
+            `;
+
+            pageDiv.innerHTML = headerHTML + tableHTML;
+            return pageDiv;
+        }
+
+        /**
+         * Utilitat per evitar injecció de codi als textos d'usuari
+         * @param {string} str 
+         * @returns {string}
+         */
+        function escapeHTML(str) {
+            return str.replace(/[&<>'"]/g, 
+                tag => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    "'": '&#39;',
+                    '"': '&quot;'
+                }[tag] || tag)
+            );
+        }
+    </script>
+</body>
+</html>
