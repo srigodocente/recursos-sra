@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="ca" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temporitzador d'aula - Gestió del temps</title>
+    
+    <!-- Tailwind CSS i Paleta Personalitzada (brand) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- FontAwesome 6 i Inter Font -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Tipografia de nombres monoespaiats per evitar salts visuals */
+        .font-mono-numbers {
+            font-family: 'JetBrains Mono', monospace;
+            font-variant-numeric: tabular-nums;
+        }
+
+        /* Alarma visual: pampallugues vermelles harmonitzades */
+        @keyframes alarmPulse {
+            0% { background-color: rgba(254, 226, 226, 1); }
+            50% { background-color: rgba(239, 68, 68, 0.4); }
+            100% { background-color: rgba(254, 226, 226, 1); }
+        }
+
+        .alarm-active {
+            animation: alarmPulse 1.2s infinite;
+        }
+
+        /* Amagar controls d'inputs numèrics de manera cross-browser */
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { 
+            -webkit-appearance: none; 
+            margin: 0; 
+        }
+        input[type=number] {
+            -moz-appearance: textfield;
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col bg-slate-50 text-slate-800 transition-colors duration-300" id="mainBody">
+
+    <!-- 🔝 2. Estructura de l'Encapçalament (<header>) -->
+    <header class="bg-indigo-600 border-b border-indigo-600 sticky top-0 z-30 shadow-md no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+            
+            <!-- BLOC 1: Logotip i Títol -->
+            <div class="flex items-center gap-3 w-full lg:w-auto justify-between lg:justify-start">
+                <div class="flex items-center gap-3">
+                    <div class="p-2.5 bg-brand-600 rounded-xl text-white shadow-lg shadow-brand-600/30 flex items-center justify-center">
+                        <i class="fa-solid fa-stopwatch text-xl"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-lg sm:text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
+                            Temporitzador d'aula
+                        </h1>
+                    </div>
+                </div>
+
+                <!-- Autor en versió mòbil -->
+                <div class="lg:hidden text-right">
+                    <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener" class="text-xs font-bold text-brand-100 hover:underline">
+                        S. Rigo
+                    </a>
+                </div>
+            </div>
+
+            <!-- BLOC 2: Targeta d'Autoria i Llicència (Centre/Desktop) - PROHIBIT MODIFICAR -->
+            <div class="hidden lg:flex bg-white px-4 py-2 rounded-xl border border-indigo-800 shadow-inner flex-col items-center text-center">
+                <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener font-bold" class="text-xs font-bold text-indigo-800 hover:underline transition-colors flex items-center gap-1.5">
+                    <i class="fa-brands fa-instagram text-indigo-800"></i> Santiago Rigo Aguiló
+                </a>
+                <div class="flex items-center gap-1.5 mt-0.5 text-[10px] text-indigo-800">
+                    <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener" class="hover:underline flex items-center gap-1">
+                        CC BY-NC-ND 4.0
+                        <span class="flex gap-0.5 opacity-100">
+                            <i class="fa-brands fa-creative-commons"></i>
+                            <i class="fa-brands fa-creative-commons-by"></i>
+                            <i class="fa-brands fa-creative-commons-nc"></i>
+                            <i class="fa-brands fa-creative-commons-nd"></i>
+                        </span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- BLOC 3: Botons d'Acció -->
+            <div class="flex items-center gap-2 flex-wrap w-full lg:w-auto justify-end">
+                <button onclick="openHelpModal()" class="bg-indigo-500 hover:bg-indigo-700 text-white border border-indigo-500 rounded-xl px-3 py-2 text-xs font-medium transition-all flex items-center gap-1.5 shadow-sm" title="Informació de l'App">
+                    <i class="fa-solid fa-circle-question text-white text-sm"></i>
+                    <span>Info</span>
+                </button>
+
+                <button onclick="timerApp.start()" class="bg-indigo-500 hover:bg-indigo-700 text-white border border-indigo-500 rounded-xl px-4 py-2 text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-brand-600/20 active:scale-95">
+                    <i class="fa-solid fa-play text-sm"></i>
+                    <span>Iniciar</span>
+                </button>
+
+                <button onclick="timerApp.reset()" class="bg-indigo-500 hover:bg-indigo-700 hover:text-white border border-indigo-500 rounded-xl p-2 text-xs transition-all flex items-center justify-center" title="Restablir dades originals">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT WRAPPER -->
+    <main class="flex-grow flex flex-col items-center justify-center p-4 md:p-8 max-w-7xl mx-auto w-full">
+        
+        <!-- CONTENIDOR DE LA TARGETA PRINCIPAL -->
+        <section class="w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-100 transition-all duration-300 my-auto">
+            
+            <!-- PANELL SUPERIOR: VISUALITZACIÓ DEL CONTROLS DE CRONÒMETRE -->
+            <div class="p-8 text-center bg-slate-50 border-b border-slate-100 relative">
+                
+                <!-- El Rellotge Gran -->
+                <div id="timerDisplay" class="font-mono-numbers text-6xl sm:text-7xl md:text-8xl font-extrabold text-slate-800 tracking-tight leading-none select-none drop-shadow-sm" role="timer" aria-live="polite">
+                    00:00:00
+                </div>
+                
+                <!-- Barra de progrés visual adaptativa -->
+                <div class="w-full h-3.5 bg-slate-200 rounded-full mt-6 overflow-hidden">
+                    <div id="progressBar" class="h-full bg-brand-600 transition-all duration-1000 ease-linear w-full"></div>
+                </div>
+
+                <!-- Missatge d'estat -->
+                <div id="statusMessage" class="mt-4 text-base font-semibold text-slate-500 h-6 flex items-center justify-center gap-2">
+                    <span>A punt per començar</span>
+                </div>
+            </div>
+
+            <!-- ZONA DE CONFIGURACIÓ I BOTONS DE CONTROL -->
+            <div class="p-6 md:p-8 bg-white">
+                
+                <!-- Inputs Manuals per configurar -->
+                <div class="flex justify-center gap-3 items-end mb-6" id="inputContainer">
+                    <div class="flex flex-col text-center">
+                        <label for="inputH" class="text-xs font-bold text-slate-400 uppercase mb-1.5 tracking-wider">Hores</label>
+                        <input type="number" id="inputH" min="0" max="99" value="00" class="w-16 sm:w-20 h-14 sm:h-16 text-2xl sm:text-3xl text-center border-2 border-slate-200 rounded-xl focus:border-brand-600 focus:ring-0 font-mono-numbers bg-slate-50 text-slate-800 transition-colors">
+                    </div>
+                    <span class="text-2xl sm:text-3xl font-bold text-slate-300 pb-3">:</span>
+                    <div class="flex flex-col text-center">
+                        <label for="inputM" class="text-xs font-bold text-slate-400 uppercase mb-1.5 tracking-wider">Minuts</label>
+                        <input type="number" id="inputM" min="0" max="59" value="00" class="w-16 sm:w-20 h-14 sm:h-16 text-2xl sm:text-3xl text-center border-2 border-slate-200 rounded-xl focus:border-brand-600 focus:ring-0 font-mono-numbers bg-slate-50 text-slate-800 transition-colors">
+                    </div>
+                    <span class="text-2xl sm:text-3xl font-bold text-slate-300 pb-3">:</span>
+                    <div class="flex flex-col text-center">
+                        <label for="inputS" class="text-xs font-bold text-slate-400 uppercase mb-1.5 tracking-wider">Segons</label>
+                        <input type="number" id="inputS" min="0" max="59" value="00" class="w-16 sm:w-20 h-14 sm:h-16 text-2xl sm:text-3xl text-center border-2 border-slate-200 rounded-xl focus:border-brand-600 focus:ring-0 font-mono-numbers bg-slate-50 text-slate-800 transition-colors">
+                    </div>
+                </div>
+
+                <!-- PANELL DE BOTONS PRINCIPALS -->
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    
+                    <!-- Botó Iniciar / Reprendre -->
+                    <button id="btnStart" onclick="timerApp.start()" class="bg-indigo-500 hover:bg-indigo-700 text-white border border-indigo-500 rounded-xl px-4 py-3 text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-lg shadow-brand-600/20 active:scale-95">
+                        <i class="fa-solid fa-play text-sm"></i>
+                        <span id="btnStartText">INICIAR</span>
+                    </button>
+                    
+                    <!-- Botó Pausar -->
+                    <button id="btnPause" onclick="timerApp.pause()" class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors hidden flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-pause text-sm"></i>
+                        <span>PAUSAR</span>
+                    </button>
+
+                    <!-- Botó Aturar Alarma -->
+                    <button id="btnStopAlarm" onclick="timerApp.dismissAlarm()" class="px-4 py-3 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all hidden flex items-center justify-center gap-2 animate-pulse shadow-lg">
+                        <i class="fa-solid fa-bell-slash text-sm"></i>
+                        <span>ATURAR ALARMA</span>
+                    </button>
+
+                    <!-- Botó Reiniciar -->
+                    <button id="btnReset" onclick="timerApp.reset()" class="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-rotate-left text-sm"></i>
+                        <span>REINICIAR</span>
+                    </button>
+
+                    <!-- Botó Desar -->
+                    <button id="btnSavePreset" onclick="timerApp.saveCurrentAsPreset()" class="bg-indigo-500 hover:bg-indigo-700 text-white border border-indigo-500 rounded-xl px-4 py-3 text-xs font-bold transition-all flex items-center justify-center gap-2 shadow-sm active:scale-95">
+                        <i class="fa-solid fa-floppy-disk text-sm"></i>
+                        <span>DESAR</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- SECCIÓ DE TEMPS PREDEFINITS (PRESETS) -->
+            <section class="bg-slate-50 p-6 md:p-8 border-t border-slate-100">
+                <h2 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <i class="fa-solid fa-bookmark text-brand-600"></i>
+                    Temps Predefinits d'Aula
+                </h2>
+                
+                <!-- Grid per als predefinits -->
+                <div id="presetsList" class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <!-- Es renderitza dinàmicament mitjançant JavaScript -->
+                </div>
+                
+                <p id="emptyPresetsMsg" class="text-slate-400 text-xs italic text-center py-4 hidden">No hi ha temps desats. Selecciona un temps i prem "Desar".</p>
+            </section>
+        </section>
+    </main>
+
+    <!-- ℹ️ 3. Modal d'Informació i Ajuda -->
+    <div id="modal-help-backdrop" class="fixed inset-0 bg-white backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden no-print transition-all">
+        <div id="modal-help" class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden transform scale-95 opacity-0 transition-all duration-200">
+            
+            <!-- Capçalera -->
+            <div class="bg-indigo-500 px-6 py-4 border-b border-indigo-500 flex items-center justify-between text-white">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-circle-info text-white text-lg"></i>
+                    <h3 class="font-bold text-base">Informació de l'App</h3>
+                </div>
+                <button onclick="closeModal()" class="text-white hover:text-white transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Cos Dinàmic -->
+            <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto text-xs text-slate-600 leading-relaxed">
+                <p class="text-sm font-medium text-slate-800">
+                    Aquesta aplicació és un temporitzador modular adaptat per a l'ús educatiu en aules. Permet gestionar intervals temporals per a dinàmiques de classe, lectura, exàmens o tasques cooperatíves.
+                </p>
+                
+                <div class="space-y-3 pt-1">
+                    <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="w-5 h-5 bg-brand-100 text-brand-700 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">1</span>
+                        <p><strong>Configuració del temps:</strong> Introdueix manualment les hores, minuts i segons desitjats als camps de text de la pantalles.</p>
+                    </div>
+                    <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="w-5 h-5 bg-brand-100 text-brand-700 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">2</span>
+                        <p><strong>Control del temporitzador:</strong> Utilitza els botons "Iniciar", "Pausar" i "Reiniciar" per controlar el compte enrere.</p>
+                    </div>
+                    <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="w-5 h-5 bg-brand-100 text-brand-700 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">3</span>
+                        <p><strong>Desar Predefinits:</strong> Prem el botó "Desar" per emmagatzemar la configuració actual i tornar-la a utilitzar fàcilment en un sol clic.</p>
+                    </div>
+                    <div class="flex gap-3 items-start bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        <span class="w-5 h-5 bg-brand-100 text-brand-700 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">4</span>
+                        <p><strong>Alarma visual i sonora:</strong> En acabar el temps, l'aplicació emetrà un senyal d'àudio i farà pampallugues visuals fins que premis "Aturar Alarma".</p>
+                    </div>
+                </div>
+
+                <!-- Llicència Interna - INVARIABLE -->
+                <div class="border-t border-slate-200 pt-4 mt-2 flex flex-col items-center text-center gap-1.5 bg-white p-3 rounded-xl">
+                    <span class="font-bold text-indigo-800">
+                       <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener" class="text-indigo-800 hover:underline flex items-center gap-1.5">
+                           <i class="fa-brands fa-instagram text-indigo-800"></i> Santiago Rigo Aguiló
+                       </a>
+                    </span>
+                    <div class="flex items-center gap-1.5 justify-center text-indigo-800">
+                        <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener" class="hover:underline font-semibold flex items-center gap-1">
+                           CC BY-NC-ND 4.0
+                            <span class="flex gap-0.5 text-slate-700">
+                                <i class="fa-brands fa-creative-commons"></i>
+                                <i class="fa-brands fa-creative-commons-by"></i>
+                                <i class="fa-brands fa-creative-commons-nc"></i>
+                                <i class="fa-brands fa-creative-commons-nd"></i>
+                            </span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Peu -->
+            <div class="bg-slate-100 px-6 py-3 border-t border-slate-200 flex justify-end">
+                <button onclick="closeModal()" class="py-2 px-5 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl text-xs transition-all shadow-md">
+                    D'acord!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- COMPONENT DE NOTIFICACIÓ PERSONALITZADA (TOAST) -->
+    <div id="customToast" class="fixed bottom-4 right-4 z-50 transform translate-y-12 opacity-0 transition-all duration-300 pointer-events-none bg-slate-900 text-white px-4 py-3 rounded-xl shadow-2xl flex items-center gap-2.5 max-w-sm border border-slate-800">
+        <span id="toastIcon" class="text-brand-500"><i class="fa-solid fa-circle-info"></i></span>
+        <span id="toastText" class="text-xs font-medium">Missatge informatiu</span>
+    </div>
+
+    <!-- COMPONENT DE DIÀLEG DE CONFIRMACIÓ REUSABLE (MODAL) -->
+    <div id="confirmModal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm opacity-0 pointer-events-none transition-opacity duration-200 p-4">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl transform scale-95 transition-transform duration-200 border border-slate-100">
+            <div class="flex items-center gap-3 text-brand-600 mb-3">
+                <i class="fa-solid fa-circle-question text-xl"></i>
+                <h3 class="text-base font-bold text-slate-900">Confirmació d'acció</h3>
+            </div>
+            <p id="confirmMessage" class="text-slate-600 text-xs mb-6 leading-relaxed">Estàs segur que vols continuar amb aquesta acció?</p>
+            <div class="flex justify-end gap-2">
+                <button id="confirmCancelBtn" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors">
+                    Cancel·lar
+                </button>
+                <button id="confirmOkBtn" class="py-2 px-5 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl text-xs transition-all shadow-md">
+                    Confirmar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT: LÒGICA AVANÇADA DE L'APLICACIÓ -->
+    <script>
+        // Funcions obligatòries del modal d'ajuda
+        function openHelpModal() {
+            const backdrop = document.getElementById('modal-help-backdrop');
+            const modal = document.getElementById('modal-help');
+            backdrop.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('scale-95', 'opacity-0');
+                modal.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeModal() {
+            const backdrop = document.getElementById('modal-help-backdrop');
+            const modal = document.getElementById('modal-help');
+            modal.classList.remove('scale-100', 'opacity-100');
+            modal.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => { backdrop.classList.add('hidden'); }, 200);
+        }
+
+        /**
+         * CLASSE CLASSROOM TIMER
+         */
+        class ClassroomTimer {
+            constructor() {
+                this.totalSeconds = 0;
+                this.remainingSeconds = 0;
+                this.intervalId = null;
+                this.isRunning = false;
+                this.isAlarmPlaying = false;
+                
+                this.audioCtx = null;
+                this.alarmInterval = null;
+
+                this.elDisplay = document.getElementById('timerDisplay');
+                this.elProgressBar = document.getElementById('progressBar');
+                this.elStatus = document.getElementById('statusMessage');
+                this.elBody = document.getElementById('mainBody');
+                
+                this.elInputH = document.getElementById('inputH');
+                this.elInputM = document.getElementById('inputM');
+                this.elInputS = document.getElementById('inputS');
+                this.elInputContainer = document.getElementById('inputContainer');
+
+                this.btnStart = document.getElementById('btnStart');
+                this.btnStartText = document.getElementById('btnStartText');
+                this.btnPause = document.getElementById('btnPause');
+                this.btnReset = document.getElementById('btnReset');
+                this.btnStopAlarm = document.getElementById('btnStopAlarm');
+                this.btnSavePreset = document.getElementById('btnSavePreset');
+                this.elPresetsList = document.getElementById('presetsList');
+                this.elEmptyMsg = document.getElementById('emptyPresetsMsg');
+
+                this.elToast = document.getElementById('customToast');
+                this.elToastText = document.getElementById('toastText');
+                this.elToastIcon = document.getElementById('toastIcon');
+                
+                this.elConfirmModal = document.getElementById('confirmModal');
+                this.elConfirmMessage = document.getElementById('confirmMessage');
+                this.btnConfirmCancel = document.getElementById('confirmCancelBtn');
+                this.btnConfirmOk = document.getElementById('confirmOkBtn');
+
+                this.presets = JSON.parse(localStorage.getItem('timer_presets')) || [
+                    { id: 101, name: 'Lectura Ràpida', seconds: 300 },
+                    { id: 102, name: 'Examen Curt', seconds: 900 },
+                    { id: 103, name: 'Treball en Equip', seconds: 1200 }
+                ];
+
+                this.init();
+            }
+
+            init() {
+                this.addEventListeners();
+                this.renderPresets();
+                this.padInputs();
+            }
+
+            showNotification(message, type = 'info') {
+                this.elToastText.innerText = message;
+                
+                if (type === 'error') {
+                    this.elToastIcon.innerHTML = `<i class="fa-solid fa-circle-exclamation text-rose-500"></i>`;
+                } else if (type === 'success') {
+                    this.elToastIcon.innerHTML = `<i class="fa-solid fa-circle-check text-emerald-500"></i>`;
+                } else {
+                    this.elToastIcon.innerHTML = `<i class="fa-solid fa-circle-info text-brand-500"></i>`;
+                }
+
+                this.elToast.classList.remove('opacity-0', 'translate-y-12', 'pointer-events-none');
+                this.elToast.classList.add('opacity-100', 'translate-y-0');
+
+                clearTimeout(this.toastTimeout);
+                this.toastTimeout = setTimeout(() => {
+                    this.elToast.classList.add('opacity-0', 'translate-y-12', 'pointer-events-none');
+                    this.elToast.classList.remove('opacity-100', 'translate-y-0');
+                }, 3500);
+            }
+
+            askConfirmation(message, onConfirm, isDestructive = false) {
+                this.elConfirmMessage.innerText = message;
+                
+                if (isDestructive) {
+                    this.btnConfirmOk.className = "py-2 px-5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl text-xs transition-all shadow-md";
+                } else {
+                    this.btnConfirmOk.className = "py-2 px-5 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl text-xs transition-all shadow-md";
+                }
+
+                this.elConfirmModal.classList.remove('pointer-events-none', 'opacity-0');
+                this.elConfirmModal.classList.add('opacity-100');
+                this.elConfirmModal.firstElementChild.classList.remove('scale-95');
+                this.elConfirmModal.firstElementChild.classList.add('scale-100');
+
+                const cleanup = () => {
+                    this.elConfirmModal.classList.add('pointer-events-none', 'opacity-0');
+                    this.elConfirmModal.classList.remove('opacity-100');
+                    this.elConfirmModal.firstElementChild.classList.remove('scale-100');
+                    this.elConfirmModal.firstElementChild.classList.add('scale-95');
+                    this.btnConfirmOk.removeEventListener('click', okHandler);
+                    this.btnConfirmCancel.removeEventListener('click', cancelHandler);
+                };
+
+                const okHandler = () => {
+                    cleanup();
+                    onConfirm();
+                };
+
+                const cancelHandler = () => {
+                    cleanup();
+                };
+
+                this.btnConfirmOk.addEventListener('click', okHandler);
+                this.btnConfirmCancel.addEventListener('click', cancelHandler);
+            }
+
+            addEventListeners() {
+                [this.elInputH, this.elInputM, this.elInputS].forEach(input => {
+                    input.addEventListener('change', () => this.validateAndPadInput(input));
+                    input.addEventListener('focus', () => input.select());
+                });
+
+                this.elConfirmModal.addEventListener('click', (e) => {
+                    if (e.target === this.elConfirmModal) this.btnConfirmCancel.click();
+                });
+            }
+
+            getInputSeconds() {
+                const h = parseInt(this.elInputH.value) || 0;
+                const m = parseInt(this.elInputM.value) || 0;
+                const s = parseInt(this.elInputS.value) || 0;
+                return (h * 3600) + (m * 60) + s;
+            }
+
+            setTime(seconds) {
+                this.totalSeconds = seconds;
+                this.remainingSeconds = seconds;
+                this.updateDisplay();
+                
+                const h = Math.floor(seconds / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = seconds % 60;
+                
+                this.elInputH.value = h.toString().padStart(2, '0');
+                this.elInputM.value = m.toString().padStart(2, '0');
+                this.elInputS.value = s.toString().padStart(2, '0');
+            }
+
+            start() {
+                if (!this.isRunning) {
+                    if (this.remainingSeconds === 0) {
+                        const inputSecs = this.getInputSeconds();
+                        if (inputSecs === 0) {
+                            this.showNotification("Si us plau, introdueix un temps superior a 0.", "error");
+                            return;
+                        }
+                        this.totalSeconds = inputSecs;
+                        this.remainingSeconds = inputSecs;
+                    }
+
+                    if (!this.audioCtx) {
+                        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    }
+                    if (this.audioCtx.state === 'suspended') {
+                        this.audioCtx.resume();
+                    }
+
+                    this.isRunning = true;
+                    this.updateControlsState();
+                    
+                    this.elStatus.innerHTML = `<i class="fa-solid fa-play text-xs text-emerald-500"></i><span>Temps actiu...</span>`;
+                    this.elStatus.className = "mt-4 text-base font-bold text-emerald-600 h-6 flex items-center justify-center gap-2";
+                    this.elInputContainer.classList.add('opacity-40', 'pointer-events-none');
+
+                    this.intervalId = setInterval(() => {
+                        this.tick();
+                    }, 1000);
+                }
+            }
+
+            pause() {
+                if (this.isRunning) {
+                    clearInterval(this.intervalId);
+                    this.isRunning = false;
+                    this.updateControlsState();
+                    this.elStatus.innerHTML = `<i class="fa-solid fa-pause text-xs text-amber-500"></i><span>En pausa</span>`;
+                    this.elStatus.className = "mt-4 text-base font-bold text-amber-500 h-6 flex items-center justify-center gap-2";
+                }
+            }
+
+            reset() {
+                this.clear();
+                this.showNotification("Temporitzador inicialitzat completament.", "info");
+            }
+
+            clear() {
+                this.pause();
+                this.stopAlarm();
+                this.remainingSeconds = 0;
+                this.totalSeconds = 0;
+                
+                this.elInputH.value = "00";
+                this.elInputM.value = "00";
+                this.elInputS.value = "00";
+                
+                this.elInputContainer.classList.remove('opacity-40', 'pointer-events-none');
+                this.elStatus.innerHTML = `<span>A punt per començar</span>`;
+                this.elStatus.className = "mt-4 text-base font-semibold text-slate-500 h-6 flex items-center justify-center gap-2";
+                this.updateDisplay();
+                this.updateControlsState();
+            }
+
+            dismissAlarm() {
+                this.clear();
+                this.showNotification("Alarma aturada i aplicació inicialitzada.", "info");
+            }
+
+            tick() {
+                if (this.remainingSeconds > 0) {
+                    this.remainingSeconds--;
+                    this.updateDisplay();
+                } else {
+                    this.triggerAlarm();
+                }
+            }
+
+            updateDisplay() {
+                const h = Math.floor(this.remainingSeconds / 3600);
+                const m = Math.floor((this.remainingSeconds % 3600) / 60);
+                const s = this.remainingSeconds % 60;
+
+                const displayString = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+                this.elDisplay.innerText = displayString;
+                document.title = `${displayString} - Temporitzador d'aula`;
+
+                if (this.totalSeconds > 0) {
+                    const percentage = (this.remainingSeconds / this.totalSeconds) * 100;
+                    this.elProgressBar.style.width = `${percentage}%`;
+                    
+                    if (percentage < 20) {
+                        this.elProgressBar.className = "h-full w-full bg-rose-500 transition-all duration-1000 ease-linear";
+                    } else if (percentage < 50) {
+                        this.elProgressBar.className = "h-full w-full bg-amber-500 transition-all duration-1000 ease-linear";
+                    } else {
+                        this.elProgressBar.className = "h-full w-full bg-brand-600 transition-all duration-1000 ease-linear";
+                    }
+                } else {
+                    this.elProgressBar.style.width = '100%';
+                    this.elProgressBar.className = "h-full w-full bg-brand-600";
+                }
+            }
+
+            updateControlsState() {
+                if (this.isRunning) {
+                    this.btnStart.classList.add('hidden');
+                    this.btnPause.classList.remove('hidden');
+                    this.btnSavePreset.classList.add('hidden');
+                } else {
+                    this.btnStart.classList.remove('hidden');
+                    this.btnPause.classList.add('hidden');
+                    this.btnSavePreset.classList.remove('hidden');
+                    
+                    if (this.remainingSeconds > 0 && this.remainingSeconds < this.totalSeconds) {
+                        this.btnStartText.innerText = 'REPRENDRE';
+                    } else {
+                        this.btnStartText.innerText = 'INICIAR';
+                    }
+                }
+            }
+
+            triggerAlarm() {
+                this.pause();
+                this.remainingSeconds = 0;
+                this.updateDisplay();
+                this.isAlarmPlaying = true;
+
+                this.elStatus.innerHTML = `<i class="fa-solid fa-triangle-exclamation text-xs text-rose-600 animate-bounce"></i><span>TEMPS ESGOTAT!</span>`;
+                this.elStatus.className = "mt-4 text-base font-black text-rose-600 h-6 flex items-center justify-center gap-2";
+                
+                this.elBody.classList.add('alarm-active');
+                
+                this.btnStart.classList.add('hidden');
+                this.btnPause.classList.add('hidden');
+                this.btnReset.classList.add('hidden');
+                this.btnStopAlarm.classList.remove('hidden');
+
+                this.playAlarmSound();
+            }
+
+            playAlarmSound() {
+                if (!this.audioCtx) return;
+
+                const playBeep = () => {
+                    if (!this.isAlarmPlaying) return;
+
+                    const osc = this.audioCtx.createOscillator();
+                    const gain = this.audioCtx.createGain();
+
+                    osc.connect(gain);
+                    gain.connect(this.audioCtx.destination);
+
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(880, this.audioCtx.currentTime);
+                    osc.frequency.setValueAtTime(440, this.audioCtx.currentTime + 0.12);
+                    
+                    gain.gain.setValueAtTime(0.4, this.audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 0.45);
+
+                    osc.start();
+                    osc.stop(this.audioCtx.currentTime + 0.5);
+                };
+
+                playBeep();
+                this.alarmInterval = setInterval(playBeep, 1000);
+            }
+
+            stopAlarm() {
+                this.isAlarmPlaying = false;
+                if (this.alarmInterval) clearInterval(this.alarmInterval);
+                
+                this.elBody.classList.remove('alarm-active');
+                this.btnStopAlarm.classList.add('hidden');
+                this.btnReset.classList.remove('hidden');
+            }
+
+            saveCurrentAsPreset() {
+                const secs = this.getInputSeconds();
+                if (secs === 0) {
+                    this.showNotification("Escriu un temps vàlid per poder desar-lo.", "error");
+                    return;
+                }
+
+                const name = prompt("Escriu el nom per a aquest predefinit (ex: Silenci de treball):", "Nou Temps d'aula");
+                if (name && name.trim() !== '') {
+                    const newPreset = {
+                        id: Date.now(),
+                        name: name.trim(),
+                        seconds: secs
+                    };
+                    this.presets.push(newPreset);
+                    this.savePresetsToStorage();
+                    this.renderPresets();
+                    this.showNotification("Nou predefinit desat correctament!", "success");
+                }
+            }
+
+            deletePreset(id) {
+                this.askConfirmation(
+                    "Estàs segur que vols eliminar permanentment aquest predefinit d'aula?", 
+                    () => {
+                        this.presets = this.presets.filter(p => p.id !== id);
+                        this.savePresetsToStorage();
+                        this.renderPresets();
+                        this.showNotification("Predefinit eliminat correctament.", "info");
+                    },
+                    true
+                );
+            }
+
+            savePresetsToStorage() {
+                localStorage.setItem('timer_presets', JSON.stringify(this.presets));
+            }
+
+            renderPresets() {
+                this.elPresetsList.innerHTML = '';
+                
+                if (this.presets.length === 0) {
+                    this.elEmptyMsg.classList.remove('hidden');
+                } else {
+                    this.elEmptyMsg.classList.add('hidden');
+                    this.presets.forEach(preset => {
+                        const h = Math.floor(preset.seconds / 3600);
+                        const m = Math.floor((preset.seconds % 3600) / 60);
+                        const s = preset.seconds % 60;
+                        const timeStr = `${h > 0 ? h + 'h ' : ''}${m}m ${s > 0 ? s + 's' : ''}`;
+
+                        const card = document.createElement('div');
+                        card.className = "flex items-center justify-between bg-white p-3 rounded-xl border border-slate-100 hover:shadow-md hover:border-slate-200 transition-all group relative";
+                        card.innerHTML = `
+                            <button class="flex-grow text-left flex items-center gap-3 focus:outline-none" onclick="timerApp.loadPreset(${preset.seconds})" aria-label="Carregar predefinit ${preset.name}">
+                                <div class="bg-brand-50 text-brand-700 p-2.5 rounded-xl transition-colors">
+                                    <i class="fa-solid fa-hourglass-half"></i>
+                                </div>
+                                <div class="truncate pr-2">
+                                    <div class="font-bold text-slate-800 text-sm truncate">${preset.name}</div>
+                                    <div class="text-xs text-slate-500 font-mono-numbers mt-0.5">${timeStr}</div>
+                                </div>
+                            </button>
+                            <button class="p-1.5 hover:bg-rose-50 text-slate-400 hover:text-rose-600 rounded-lg transition-colors md:opacity-0 md:group-hover:opacity-100 focus:opacity-100" onclick="timerApp.deletePreset(${preset.id})" aria-label="Eliminar predefinit">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>
+                        `;
+                        this.elPresetsList.appendChild(card);
+                    });
+                }
+            }
+
+            loadPreset(seconds) {
+                if (this.isRunning) {
+                    this.showNotification("Pausa o reinicia el temporitzador abans de carregar un predefinit.", "info");
+                    return;
+                }
+                this.clear();
+                this.setTime(seconds);
+                this.showNotification("Temps predefinit carregat.", "success");
+            }
+
+            validateAndPadInput(input) {
+                let val = parseInt(input.value);
+                const max = parseInt(input.getAttribute('max'));
+                const min = parseInt(input.getAttribute('min'));
+
+                if (isNaN(val)) val = 0;
+                if (val > max) val = max;
+                if (val < min) val = min;
+
+                input.value = val.toString().padStart(2, '0');
+            }
+
+            padInputs() {
+                this.validateAndPadInput(this.elInputH);
+                this.validateAndPadInput(this.elInputM);
+                this.validateAndPadInput(this.elInputS);
+            }
+        }
+
+        let timerApp;
+        window.onload = function () {
+            timerApp = new ClassroomTimer();
+            window.timerApp = timerApp;
+        }
+    </script>
+</body>
+</html>
