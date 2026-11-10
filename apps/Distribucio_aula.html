@@ -437,7 +437,6 @@
                     </select>`;
                 d.querySelector('select').onchange = e => {
                     S.cfg.types[i] = +e.target.value;
-                    save();
                 };
                 $('types').appendChild(d);
             });
@@ -651,8 +650,6 @@
                 (S.seat.some(s => s && s.n) ? '<span class="flex items-center gap-1.5"><i class="w-3 h-3 rounded border border-slate-300 inline-block" style="background:hsl(350 90% 92%)"></i>«n» (separats)</span>' : '') +
                 '<span class="flex items-center gap-1 text-slate-400"><i class="fa-solid fa-lock"></i> Fixat</span>' +
                 '<span class="flex items-center gap-1 text-rose-500">⚠️ Incompliment</span>';
-
-            save();
         }
 
         function pick(i) {
@@ -693,12 +690,6 @@
             $('pt').textContent = '';
             upCount();
             render();
-        }
-
-        function save() {
-            try {
-                localStorage.setItem(KEY, JSON.stringify({ cfg: S.cfg, seat: S.seat, lock: S.lock, text: $('list').value, cname: $('cname').value }));
-            } catch (e) {}
         }
 
         function load(d) {
@@ -747,9 +738,9 @@
 
         const upCount = () => $('count').textContent = parse().length + ' alumnes';
         
-        $('list').oninput = () => { upCount(); save(); };
-        $('cols').oninput = () => { cfgUI(); save(); };
-        $('cname').oninput = () => { $('pt').textContent = $('cname').value; save(); };
+        $('list').oninput = () => { upCount(); };
+        $('cols').oninput = () => { cfgUI(); render(); };
+        $('cname').oninput = () => { $('pt').textContent = $('cname').value; };
 
         document.addEventListener('keydown', e => {
             if ((e.ctrlKey || e.metaKey) && e.key === 'z' && document.activeElement.tagName !== 'TEXTAREA') {
@@ -790,14 +781,13 @@
         window.addEventListener('beforeprint', fitPrint);
         if (window.matchMedia) matchMedia('print').addEventListener('change', e => { if (e.matches) fitPrint(); });
 
-        // Inicialització
-        $('pd').textContent = new Date().toLocaleDateString('ca-ES');
-        cfgUI();
+        // Inicialització completament neta (esborra qualsevol dada desada prèviament)
         try {
-            const d = JSON.parse(localStorage.getItem(KEY) || 'null');
-            if (d) load(d);
+            localStorage.removeItem(KEY);
         } catch (e) {}
-        upCount();
+
+        $('pd').textContent = new Date().toLocaleDateString('ca-ES');
+        clearAllData();
     </script>
 </body>
 </html>
