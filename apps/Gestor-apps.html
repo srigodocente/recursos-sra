@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="ca" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Recursos Web</title>
+    
+    <!-- Tailwind CSS i Paleta Personalitzada (brand) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- FontAwesome 6 i Inter Font -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        /* Estils personalitzats per a la barra lateral i transicions de mode */
+        .sidebar-transition {
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        /* Amagar scrollbar per a un disseny més net */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 h-full flex flex-col font-sans transition-colors duration-200 overflow-hidden">
+
+    <!-- Contingut Principal amb Barra Lateral i Visor Frame -->
+    <div class="flex-1 flex overflow-hidden relative h-full">
+        
+        <!-- BARRA VERTICAL LATERAL (Desplegable per Hover, es plega quan no es clica) -->
+        <aside id="sidebar" 
+               onmouseenter="expandSidebar()" 
+               onmouseleave="collapseSidebar()"
+               class="sidebar-transition w-16 hover:w-72 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 shadow-xl z-20 flex flex-col flex-none group overflow-hidden">
+            
+            <!-- Capçalera de la Barra Lateral -->
+            <div class="p-3 border-b border-slate-100 dark:border-slate-700/50 flex items-center justify-between min-w-[288px]">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-brand-50 dark:bg-slate-700 flex items-center justify-center text-brand-600 dark:text-brand-500 font-bold flex-shrink-0">
+                        <i class="fa-solid fa-bookmark text-lg"></i>
+                    </div>
+                    <div class="flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <span class="font-extrabold text-sm text-slate-800 dark:text-white tracking-tight whitespace-nowrap">
+                            Els Meus Recursos
+                        </span>
+                        <!-- Indicador d'Estat Local -->
+                        <span class="text-[10px] text-slate-500 dark:text-slate-400 font-medium flex items-center gap-1">
+                            <i class="fa-solid fa-hard-drive text-[9px]"></i> Mode Local
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Botó d'Edició / Bloqueig (Candat Obert/Tancat) -->
+                <button onclick="toggleEditLock(event)" id="lock-btn" class="mr-3 bg-indigo-500 hover:bg-indigo-700 hover:text-white border border-indigo-500 rounded-xl p-2 text-xs transition-all flex items-center justify-center opacity-0 group-hover:opacity-100 text-white" title="Activar/Desactivar Edició">
+                    <i id="lock-icon" class="fa-solid fa-lock text-sm"></i>
+                </button>
+            </div>
+
+            <!-- Llista de Recursos -->
+            <div id="resources-list" class="flex-1 overflow-y-auto no-scrollbar p-2 space-y-1.5 min-w-[288px]">
+                <!-- Els recursos es carregaran dinàmicament aquí -->
+            </div>
+
+            <!-- Peu de la Barra Lateral -->
+            <div id="sidebar-add-btn-container" class="p-3 border-t border-slate-100 dark:border-slate-700/50 min-w-[288px] opacity-0 group-hover:opacity-100 transition-opacity duration-200 hidden">
+                <button onclick="openAddModal()" class="w-full bg-indigo-500 hover:bg-indigo-700 text-white border border-indigo-500 rounded-xl px-3 py-2 text-xs font-medium transition-all flex items-center justify-center gap-2 shadow-sm">
+                    <i class="fa-solid fa-plus text-xs"></i>
+                    <span>Afegir Enllaç</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- ÀREA PRINCIPAL DE VISUALITZACIÓ (IFRAME I PÀGINA INICIAL) -->
+        <main class="flex-1 flex flex-col bg-slate-100 dark:bg-slate-900 relative overflow-hidden">
+            <!-- Frame d'exhibició i Pantalla d'Inici -->
+            <div class="flex-1 relative w-full h-full overflow-y-auto">
+                <!-- Pantalla d'Inici Integrada -->
+                <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center p-6 text-center z-10 overflow-y-auto">
+                    
+                    <!-- Icona i Títol Gran -->
+                    <div class="w-24 h-24 bg-indigo-600 text-white rounded-3xl flex items-center justify-center mb-6 text-4xl shadow-xl shadow-brand-600/30">
+                        <i class="fa-solid fa-folder-tree"></i>
+                    </div>
+
+                    <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-800 dark:text-white tracking-tight mb-2">
+                        GESTOR DE RECURSOS
+                    </h1>
+                    <p class="text-sm font-semibold text-brand-600 dark:text-brand-400 tracking-wide uppercase mb-3">
+                        Apps per a la gestió del dia a dia docent
+                    </p>
+
+                    <p class="text-base text-slate-600 dark:text-slate-400 max-w-lg mb-8 leading-relaxed">
+                        Desplega el menú lateral esquerre i selecciona un recurs per carregar-lo directament en aquesta finestra.
+                    </p>
+
+                    <!-- Botons d'Acció Principals (Mida gran) -->
+                    <div class="flex items-center gap-4 flex-wrap justify-center mb-10">
+                        <!-- Botó Mode Clar / Mode Fosc -->
+                        <button onclick="toggleDarkMode()" id="theme-toggle" class="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-2xl px-6 py-3.5 text-base font-semibold transition-all flex items-center gap-2.5 shadow-md">
+                            <i id="theme-toggle-icon" class="fa-solid fa-moon text-lg"></i>
+                            <span id="theme-toggle-text">Mode Fosc</span>
+                        </button>
+
+                        <!-- Botó d'Informació -->
+                        <button onclick="openHelpModal()" class="bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-2xl px-6 py-3.5 text-base font-semibold transition-all flex items-center gap-2.5 shadow-md" title="Informació de l'App">
+                            <i class="fa-solid fa-circle-question text-lg"></i>
+                            <span>Info</span>
+                        </button>
+                    </div>
+
+                    <!-- BLOC 2: Targeta d'Autoria i Llicència (Centre Pàgina Inicial) -->
+                    <div class="bg-white dark:bg-slate-800 px-5 py-3 rounded-2xl border border-indigo-200 dark:border-indigo-900/50 shadow-md flex flex-col items-center text-center">
+                        <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener" class="text-xs font-bold text-indigo-800 dark:text-indigo-400 hover:underline transition-colors flex items-center gap-1.5">
+                            <i class="fa-brands fa-instagram text-indigo-800 dark:text-indigo-400"></i> Santiago Rigo Aguiló
+                        </a>
+                        <div class="flex items-center gap-1.5 mt-1 text-[11px] text-indigo-800 dark:text-indigo-400">
+                            <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener" class="hover:underline flex items-center gap-1 font-medium">
+                                CC BY-NC-ND 4.0
+                                <span class="flex gap-0.5 opacity-100 text-slate-700 dark:text-slate-300">
+                                    <i class="fa-brands fa-creative-commons"></i>
+                                    <i class="fa-brands fa-creative-commons-by"></i>
+                                    <i class="fa-brands fa-creative-commons-nc"></i>
+                                    <i class="fa-brands fa-creative-commons-nd"></i>
+                                </span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Iframe -->
+                <iframe id="main-frame" class="w-full h-full border-none relative z-20 hidden" sandbox="allow-scripts allow-same-origin allow-forms allow-popups"></iframe>
+            </div>
+        </main>
+    </div>
+
+    <!-- ℹ️ Modal d'Informació i Ajuda -->
+    <div id="modal-help-backdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden transition-all">
+        <div id="modal-help" class="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden transform scale-95 opacity-0 transition-all duration-200">
+            
+            <!-- Capçalera -->
+            <div class="bg-indigo-500 px-6 py-4 border-b border-indigo-500 flex items-center justify-between text-white">
+                <div class="flex items-center gap-2.5">
+                    <i class="fa-solid fa-circle-info text-white text-lg"></i>
+                    <h3 class="font-bold text-base">Informació de l'App</h3>
+                </div>
+                <button onclick="closeModal()" class="text-white hover:text-slate-200 transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Cos Dinàmic -->
+            <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                <p class="text-sm font-medium text-slate-800 dark:text-slate-100">
+                    Aquesta aplicació permet organitzar i accedir ràpidament als teus recursos i llocs web preferits mitjançant un menú lateral intel·ligent i un visor integrat.
+                </p>
+                
+                <div class="space-y-3 pt-1">
+                    <div class="flex gap-3 items-start bg-slate-50 dark:bg-slate-700/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <span class="w-5 h-5 bg-brand-100 dark:bg-brand-900 text-brand-700 dark:text-brand-300 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">1</span>
+                        <p><strong>Menú desplegable:</strong> Passa el cursor sobre la barra esquerra per desplegar el menú de recursos. Quan deixis de fer clic o passis el ratolí fora, es plega automàticament.</p>
+                    </div>
+                    <div class="flex gap-3 items-start bg-slate-50 dark:bg-slate-700/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <span class="w-5 h-5 bg-brand-100 dark:bg-brand-900 text-brand-700 dark:text-brand-300 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">2</span>
+                        <p><strong>Edició i Bloqueig:</strong> Utilitza el botó del candat a la capçalera del menú per activar l'edició introduint la contrasenya d'accés (<strong>230202</strong>).</p>
+                    </div>
+                    <div class="flex gap-3 items-start bg-slate-50 dark:bg-slate-700/50 p-2.5 rounded-xl border border-slate-100 dark:border-slate-700">
+                        <span class="w-5 h-5 bg-brand-100 dark:bg-brand-900 text-brand-700 dark:text-brand-300 font-bold rounded-lg flex items-center justify-center flex-shrink-0 text-xs">3</span>
+                        <p><strong>Mode Clar / Fosc:</strong> Canvia entre el tema clar i el fosc fent clic a la icona del Sol/Luna a la pàgina d'inici.</p>
+                    </div>
+                </div>
+
+                <!-- Llicència Interna -->
+                <div class="border-t border-slate-200 dark:border-slate-700 pt-4 mt-2 flex flex-col items-center text-center gap-1.5 bg-white dark:bg-slate-800 p-3 rounded-xl">
+                    <span class="font-bold text-indigo-800 dark:text-indigo-400">
+                       <a href="https://www.instagram.com/srigodocente/" target="_blank" rel="noopener" class="text-indigo-800 dark:text-indigo-400 hover:underline flex items-center gap-1.5">
+                           <i class="fa-brands fa-instagram text-indigo-800 dark:text-indigo-400"></i> Santiago Rigo Aguiló
+                       </a>
+                    </span>
+                    <div class="flex items-center gap-1.5 justify-center text-indigo-800 dark:text-indigo-400">
+                        <a href="https://creativecommons.org/licenses/by-nc-nd/4.0/" target="_blank" rel="noopener" class="hover:underline font-semibold flex items-center gap-1">
+                           CC BY-NC-ND 4.0
+                            <span class="flex gap-0.5 text-slate-700 dark:text-slate-300">
+                                <i class="fa-brands fa-creative-commons"></i>
+                                <i class="fa-brands fa-creative-commons-by"></i>
+                                <i class="fa-brands fa-creative-commons-nc"></i>
+                                <i class="fa-brands fa-creative-commons-nd"></i>
+                            </span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Peu -->
+            <div class="bg-slate-100 dark:bg-slate-700/50 px-6 py-3 border-t border-slate-200 dark:border-slate-700 flex justify-end">
+                <button onclick="closeModal()" class="py-2 px-5 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl text-xs transition-all shadow-md">
+                    D'acord!
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PER AFEGIR / EDITAR RECURS -->
+    <div id="modal-resource-backdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden transition-all">
+        <div id="modal-resource" class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden transform scale-95 opacity-0 transition-all duration-200">
+            <div class="bg-indigo-500 px-6 py-4 border-b border-indigo-500 flex items-center justify-between text-white">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-link text-lg"></i>
+                    <h3 id="resource-modal-title" class="font-bold text-base">Afegir Nou Recurs</h3>
+                </div>
+                <button onclick="closeResourceModal()" class="text-white hover:text-slate-200 transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="resource-form" onsubmit="saveResource(event)" class="p-6 space-y-4">
+                <input type="hidden" id="res-id">
+                
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Nom del Recurs</label>
+                    <input type="text" id="res-name" required placeholder="Ex: Viquipèdia, Cercador, Document..." class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Adreça URL</label>
+                    <input type="url" id="res-url" required placeholder="https://example.com" class="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Seleccionar Icona</label>
+                    <input type="hidden" id="res-icon" value="fa-solid fa-globe">
+                    
+                    <!-- Previsualització de l'icona seleccionada -->
+                    <div class="flex items-center gap-3 mb-2 p-2 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-200 dark:border-slate-600">
+                        <div class="w-10 h-10 bg-brand-600 text-white rounded-xl flex items-center justify-center text-lg flex-shrink-0 shadow-sm">
+                            <i id="icon-preview" class="fa-solid fa-globe"></i>
+                        </div>
+                        <span id="icon-name-display" class="text-xs font-medium text-slate-600 dark:text-slate-300 truncate">fa-solid fa-globe</span>
+                    </div>
+
+                    <!-- Graella d'icones classificades per temàtica -->
+                    <div class="max-h-48 overflow-y-auto p-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3 no-scrollbar">
+                        <!-- General i Educació -->
+                        <div>
+                            <span class="text-[10px] font-bold tracking-wider text-slate-400 uppercase block mb-1">General i Educació</span>
+                            <div class="grid grid-cols-6 gap-1.5" id="group-education"></div>
+                        </div>
+
+                        <!-- Cerca i Informació -->
+                        <div>
+                            <span class="text-[10px] font-bold tracking-wider text-slate-400 uppercase block mb-1">Cerca i Informació</span>
+                            <div class="grid grid-cols-6 gap-1.5" id="group-search"></div>
+                        </div>
+
+                        <!-- Tecnologia i Eines -->
+                        <div>
+                            <span class="text-[10px] font-bold tracking-wider text-slate-400 uppercase block mb-1">Tecnologia i Eines</span>
+                            <div class="grid grid-cols-6 gap-1.5" id="group-tech"></div>
+                        </div>
+
+                        <!-- Multimèdia i Comunicació -->
+                        <div>
+                            <span class="text-[10px] font-bold tracking-wider text-slate-400 uppercase block mb-1">Multimèdia i Comunicació</span>
+                            <div class="grid grid-cols-6 gap-1.5" id="group-media"></div>
+                        </div>
+
+                        <!-- Altres -->
+                        <div>
+                            <span class="text-[10px] font-bold tracking-wider text-slate-400 uppercase block mb-1">Altres</span>
+                            <div class="grid grid-cols-6 gap-1.5" id="group-other"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pt-3 flex justify-end gap-2 border-t border-slate-100 dark:border-slate-700">
+                    <button type="button" onclick="closeResourceModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl transition-colors">
+                        Cancel·lar
+                    </button>
+                    <button type="submit" class="py-2 px-5 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl text-xs transition-all shadow-md">
+                        Desar Recurs
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL PER DEMANAR CONTRASENYA -->
+    <div id="modal-password-backdrop" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden transition-all">
+        <div id="modal-password" class="bg-white dark:bg-slate-800 rounded-2xl max-w-sm w-full shadow-2xl border border-slate-100 dark:border-slate-700 overflow-hidden transform scale-95 opacity-0 transition-all duration-200">
+            <div class="bg-indigo-500 px-6 py-4 border-b border-indigo-500 flex items-center justify-between text-white">
+                <div class="flex items-center gap-2">
+                    <i class="fa-solid fa-key text-lg"></i>
+                    <h3 class="font-bold text-base">Accés Protegit</h3>
+                </div>
+                <button onclick="closePasswordModal()" class="text-white hover:text-slate-200 transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form onsubmit="verifyPassword(event)" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">Introdueix la contrasenya d'edició:</label>
+                    <input type="password" id="pass-input" required placeholder="••••••" class="w-full px-3 py-2 text-sm text-center tracking-widest rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    <p id="pass-error" class="text-[11px] text-rose-500 font-medium mt-1.5 hidden">Contrasenya incorrecta. Torna-ho a intentar.</p>
+                </div>
+
+                <div class="pt-2 flex justify-end gap-2">
+                    <button type="button" onclick="closePasswordModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs font-semibold rounded-xl transition-colors">
+                        Cancel·lar
+                    </button>
+                    <button type="submit" class="py-2 px-5 bg-brand-600 hover:bg-brand-500 text-white font-bold rounded-xl text-xs transition-all shadow-md">
+                        Desbloquejar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- LÒGICA JS PRINCIPAL (Lliure de Firebase i LocalStorage) -->
+    <script>
+        // RECURSOS PER DEFECTE EN MEMÒRIA
+        const DEFAULT_RESOURCES = [
+            { id: '1', name: 'Calendari', url: 'https://srigodocente.github.io/recursos-sra/apps/Calendari_curs_escolar.html', icon: 'fa-solid fa-calendar' },
+            { id: '2', name: 'Temporitzador', url: 'https://srigodocente.github.io/recursos-sra/apps/temporitzador.html', icon: 'fa-solid fa-hourglass-1' },
+            { id: '3', name: 'Generador grups', url: 'https://srigodocente.github.io/recursos-sra/apps/Grups_heterogenis.html', icon: 'fa-solid fa-users' },
+            { id: '4', name: 'Disttribució aula', url: 'https://srigodocente.github.io/recursos-sra/apps/Distribucio_aula.html', icon: 'fa-solid fa-chalkboard-teacher' }
+        ];
+
+        window.ICON_CATEGORIES = {
+            'group-education': [
+                'fa-solid fa-globe', 'fa-solid fa-book', 'fa-solid fa-book-open', 'fa-solid fa-book-bookmark', 'fa-solid fa-bookmark',
+                'fa-solid fa-graduation-cap', 'fa-solid fa-school', 'fa-solid fa-pen-to-square', 'fa-solid fa-pencil', 'fa-solid fa-pen',
+                'fa-solid fa-lightbulb', 'fa-solid fa-flask', 'fa-solid fa-brain', 'fa-solid fa-chalkboard-user', 'fa-solid fa-chalkboard',
+                'fa-solid fa-users-rectangle', 'fa-solid fa-certificate', 'fa-solid fa-award', 'fa-solid fa-medal', 'fa-solid fa-trophy',
+                'fa-solid fa-microscope', 'fa-solid fa-atom', 'fa-solid fa-dna', 'fa-solid fa-vial', 'fa-solid fa-compass-drafting',
+                'fa-solid fa-ruler', 'fa-solid fa-ruler-combined', 'fa-solid fa-paperclip', 'fa-solid fa-scissors', 'fa-solid fa-highlighter',
+                'fa-solid fa-signature', 'fa-solid fa-spell-check', 'fa-solid fa-language', 'fa-solid fa-quote-right', 'fa-solid fa-paragraph',
+                'fa-solid fa-file-lines', 'fa-solid fa-file-pdf', 'fa-solid fa-file-word', 'fa-solid fa-file-excel', 'fa-solid fa-file-powerpoint'
+            ],
+            'group-search': [
+                'fa-solid fa-magnifying-glass', 'fa-solid fa-magnifying-glass-plus', 'fa-solid fa-magnifying-glass-minus', 'fa-solid fa-newspaper',
+                'fa-solid fa-info-circle', 'fa-solid fa-circle-question', 'fa-solid fa-map-location-dot', 'fa-solid fa-map', 'fa-solid fa-location-dot',
+                'fa-solid fa-compass', 'fa-solid fa-filter', 'fa-solid fa-route', 'fa-solid fa-crosshairs', 'fa-solid fa-arrow-pointer',
+                'fa-solid fa-binoculars', 'fa-solid fa-eye', 'fa-solid fa-sitemap', 'fa-solid fa-layer-group', 'fa-solid fa-database',
+                'fa-solid fa-server', 'fa-solid fa-hard-drive', 'fa-solid fa-cloud-arrow-down', 'fa-solid fa-cloud-arrow-up', 'fa-solid fa-download',
+                'fa-solid fa-upload', 'fa-solid fa-share-nodes', 'fa-solid fa-link', 'fa-solid fa-anchor', 'fa-solid fa-globe-europe',
+                'fa-solid fa-satellite', 'fa-solid fa-earth-americas', 'fa-solid fa-earth-africa', 'fa-solid fa-earth-asia', 'fa-solid fa-flag'
+            ],
+            'group-tech': [
+                'fa-solid fa-code', 'fa-solid fa-code-compare', 'fa-solid fa-code-branch', 'fa-solid fa-code-commit', 'fa-solid fa-laptop',
+                'fa-solid fa-laptop-code', 'fa-solid fa-desktop', 'fa-solid fa-display', 'fa-solid fa-mobile-screen', 'fa-solid fa-tablet-screen-button',
+                'fa-solid fa-gear', 'fa-solid fa-gears', 'fa-solid fa-sliders', 'fa-solid fa-wrench', 'fa-solid fa-screwdrivers-wrench',
+                'fa-solid fa-calculator', 'fa-solid fa-abacus', 'fa-solid fa-cloud', 'fa-solid fa-terminal', 'fa-solid fa-microchip',
+                'fa-solid fa-robot', 'fa-solid fa-memory', 'fa-solid fa-network-wired', 'fa-solid fa-wifi', 'fa-solid fa-signal',
+                'fa-solid fa-ethernet', 'fa-solid fa-bug', 'fa-solid fa-shield-halved', 'fa-solid fa-key', 'fa-solid fa-lock',
+                'fa-solid fa-unlock', 'fa-solid fa-user-shield', 'fa-solid fa-vault', 'fa-solid fa-fingerprint', 'fa-solid fa-print',
+                'fa-solid fa-keyboard', 'fa-solid fa-plug', 'fa-solid fa-power-off', 'fa-solid fa-battery-full', 'fa-solid fa-charging-station'
+            ],
+            'group-media': [
+                'fa-solid fa-video', 'fa-solid fa-film', 'fa-solid fa-clapperboard', 'fa-solid fa-play', 'fa-solid fa-pause',
+                'fa-solid fa-stop', 'fa-solid fa-forward', 'fa-solid fa-backward', 'fa-solid fa-image', 'fa-solid fa-images',
+                'fa-solid fa-photo-film', 'fa-solid fa-comments', 'fa-solid fa-comment-dots', 'fa-solid fa-envelope', 'fa-solid fa-inbox',
+                'fa-solid fa-music', 'fa-solid fa-headphones', 'fa-solid fa-podcast', 'fa-solid fa-radio', 'fa-solid fa-camera',
+                'fa-solid fa-camera-rotate', 'fa-solid fa-microphone', 'fa-solid fa-microphone-lines', 'fa-solid fa-volume-high', 'fa-solid fa-volume-xmark',
+                'fa-solid fa-bullhorn', 'fa-solid fa-sliders', 'fa-solid fa-icons', 'fa-solid fa-bell', 'fa-solid fa-circle-play',
+                'fa-solid fa-compact-disc', 'fa-solid fa-sliders', 'fa-solid fa-file-audio', 'fa-solid fa-file-video', 'fa-solid fa-file-image'
+            ],
+            'group-other': [
+                'fa-solid fa-star', 'fa-solid fa-heart', 'fa-solid fa-thumbs-up', 'fa-solid fa-folder', 'fa-solid fa-folder-open',
+                'fa-solid fa-folder-plus', 'fa-solid fa-box-archive', 'fa-solid fa-chart-simple', 'fa-solid fa-chart-line', 'fa-solid fa-chart-pie',
+                'fa-solid fa-chart-column', 'fa-solid fa-calendar-days', 'fa-solid fa-calendar-check', 'fa-solid fa-clock', 'fa-solid fa-hourglass-half',
+                'fa-solid fa-palette', 'fa-solid fa-brush', 'fa-solid fa-paint-roller', 'fa-solid fa-gamepad', 'fa-solid fa-dice',
+                'fa-solid fa-puzzle-piece', 'fa-solid fa-chess', 'fa-solid fa-chess-knight', 'fa-solid fa-ghost', 'fa-solid fa-headset',
+                'fa-solid fa-utensils', 'fa-solid fa-mug-hot', 'fa-solid fa-plane', 'fa-solid fa-car', 'fa-solid fa-bicycle',
+                'fa-solid fa-basket-shopping', 'fa-solid fa-cart-shopping', 'fa-solid fa-bag-shopping', 'fa-solid fa-credit-card', 'fa-solid fa-coins',
+                'fa-solid fa-receipt', 'fa-solid fa-vault', 'fa-solid fa-tag', 'fa-solid fa-tags', 'fa-solid fa-gift',
+                'fa-solid fa-cake-candles', 'fa-solid fa-house', 'fa-solid fa-building', 'fa-solid fa-store', 'fa-solid fa-user',
+                'fa-solid fa-users', 'fa-solid fa-user-group', 'fa-solid fa-address-book', 'fa-solid fa-address-card', 'fa-solid fa-id-card'
+            ]
+        };
+
+        window.EDIT_PASSWORD = '230202';
+        window.resources = [...DEFAULT_RESOURCES];
+        window.isEditingUnlocked = false;
+        window.activeResourceId = null;
+
+        function renderIconGrid() {
+            if (!window.ICON_CATEGORIES) return;
+            Object.keys(window.ICON_CATEGORIES).forEach(groupId => {
+                const container = document.getElementById(groupId);
+                if (!container) return;
+                container.innerHTML = '';
+                
+                window.ICON_CATEGORIES[groupId].forEach(iconClass => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = `icon-select-btn p-2 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-slate-700 transition-all border border-transparent`;
+                    btn.setAttribute('data-icon', iconClass);
+                    btn.onclick = () => selectIcon(iconClass);
+                    btn.innerHTML = `<i class="${iconClass} text-sm"></i>`;
+                    container.appendChild(btn);
+                });
+            });
+        }
+
+        function selectIcon(iconClass) {
+            document.getElementById('res-icon').value = iconClass;
+            updateIconPreview();
+        }
+
+        function updateIconPreview() {
+            const iconValue = document.getElementById('res-icon').value || 'fa-solid fa-globe';
+            document.getElementById('icon-preview').className = iconValue;
+            document.getElementById('icon-name-display').textContent = iconValue;
+
+            document.querySelectorAll('.icon-select-btn').forEach(btn => {
+                if (btn.getAttribute('data-icon') === iconValue) {
+                    btn.className = 'icon-select-btn p-2 rounded-xl flex items-center justify-center bg-brand-600 text-white shadow-sm border border-brand-600';
+                } else {
+                    btn.className = 'icon-select-btn p-2 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-slate-700 transition-all border border-transparent';
+                }
+            });
+        }
+
+        function initTheme() {
+            const icon = document.getElementById('theme-toggle-icon');
+            const text = document.getElementById('theme-toggle-text');
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.classList.add('dark');
+                if(icon) icon.className = 'fa-solid fa-sun text-lg text-amber-300';
+                if(text) text.textContent = 'Mode Clar';
+            } else {
+                document.documentElement.classList.remove('dark');
+                if(icon) icon.className = 'fa-solid fa-moon text-lg';
+                if(text) text.textContent = 'Mode Fosc';
+            }
+        }
+
+        function toggleDarkMode() {
+            const icon = document.getElementById('theme-toggle-icon');
+            const text = document.getElementById('theme-toggle-text');
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                if(icon) icon.className = 'fa-solid fa-moon text-lg';
+                if(text) text.textContent = 'Mode Fosc';
+            } else {
+                document.documentElement.classList.add('dark');
+                if(icon) icon.className = 'fa-solid fa-sun text-lg text-amber-300';
+                if(text) text.textContent = 'Mode Clar';
+            }
+        }
+
+        function expandSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+                sidebar.classList.remove('w-16');
+                sidebar.classList.add('w-72');
+            }
+        }
+
+        function collapseSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            if (sidebar) {
+                sidebar.classList.remove('w-72');
+                sidebar.classList.add('w-16');
+            }
+        }
+
+        function toggleEditLock(event) {
+            if (event) event.stopPropagation();
+            if (window.isEditingUnlocked) {
+                setEditState(false);
+            } else {
+                openPasswordModal();
+            }
+        }
+
+        function openPasswordModal() {
+            document.getElementById('pass-input').value = '';
+            document.getElementById('pass-error').classList.add('hidden');
+            const backdrop = document.getElementById('modal-password-backdrop');
+            const modal = document.getElementById('modal-password');
+            backdrop.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('scale-95', 'opacity-0');
+                modal.classList.add('scale-100', 'opacity-100');
+                document.getElementById('pass-input').focus();
+            }, 10);
+        }
+
+        function closePasswordModal() {
+            const backdrop = document.getElementById('modal-password-backdrop');
+            const modal = document.getElementById('modal-password');
+            modal.classList.remove('scale-100', 'opacity-100');
+            modal.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => { backdrop.classList.add('hidden'); }, 200);
+        }
+
+        function verifyPassword(event) {
+            event.preventDefault();
+            const input = document.getElementById('pass-input').value;
+            if (input === window.EDIT_PASSWORD) {
+                closePasswordModal();
+                setEditState(true);
+            } else {
+                document.getElementById('pass-error').classList.remove('hidden');
+            }
+        }
+
+        function setEditState(unlocked) {
+            window.isEditingUnlocked = unlocked;
+            const lockIcon = document.getElementById('lock-icon');
+            const lockBtn = document.getElementById('lock-btn');
+            const addBtnContainer = document.getElementById('sidebar-add-btn-container');
+
+            if (window.isEditingUnlocked) {
+                lockIcon.className = 'fa-solid fa-lock-open text-sm';
+                lockBtn.title = 'Mode Edició Actiu (Feu clic per bloquejar)';
+                lockBtn.classList.add('bg-amber-500', 'border-amber-500');
+                addBtnContainer.classList.remove('hidden');
+            } else {
+                lockIcon.className = 'fa-solid fa-lock text-sm';
+                lockBtn.title = 'Bloquejat (Feu clic per desbloquejar edició)';
+                lockBtn.classList.remove('bg-amber-500', 'border-amber-500');
+                addBtnContainer.classList.add('hidden');
+            }
+
+            renderResources();
+        }
+
+        function renderResources() {
+            const container = document.getElementById('resources-list');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const list = window.resources || [];
+            list.forEach(res => {
+                const isActive = res.id === window.activeResourceId;
+                const item = document.createElement('div');
+                item.className = `group/item flex items-center justify-between p-2 rounded-xl cursor-pointer transition-all ${
+                    isActive 
+                    ? 'bg-brand-50 dark:bg-slate-700 text-brand-600 dark:text-brand-400 font-semibold' 
+                    : 'hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-300'
+                }`;
+
+                item.onclick = () => loadResource(res);
+
+                let editButtonsHtml = '';
+                if (window.isEditingUnlocked) {
+                    editButtonsHtml = `
+                        <div class="flex items-center gap-1 opacity-100 transition-opacity">
+                            <button onclick="openEditModal(event, '${res.id}')" class="p-1.5 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-500 hover:text-brand-600 rounded-lg transition-colors" title="Editar">
+                                <i class="fa-solid fa-pen text-xs"></i>
+                            </button>
+                            <button onclick="deleteResource(event, '${res.id}')" class="p-1.5 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-slate-400 hover:text-rose-600 rounded-lg transition-colors" title="Eliminar">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+
+                item.innerHTML = `
+                    <div class="flex items-center gap-3 overflow-hidden">
+                        <div class="w-8 h-8 rounded-lg ${isActive ? 'bg-brand-600 text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'} flex items-center justify-center flex-shrink-0 text-sm">
+                            <i class="${res.icon}"></i>
+                        </div>
+                        <span class="text-xs truncate whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200">${res.name}</span>
+                    </div>
+                    <div class="opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        ${editButtonsHtml}
+                    </div>
+                `;
+
+                container.appendChild(item);
+            });
+        }
+
+        function loadResource(res) {
+            window.activeResourceId = res.id;
+            const iframe = document.getElementById('main-frame');
+            const emptyState = document.getElementById('empty-state');
+
+            iframe.src = res.url;
+            iframe.classList.remove('hidden');
+            emptyState.classList.add('hidden');
+
+            renderResources();
+            collapseSidebar();
+        }
+
+        function goHome() {
+            window.activeResourceId = null;
+            document.getElementById('main-frame').classList.add('hidden');
+            document.getElementById('main-frame').src = '';
+            document.getElementById('empty-state').classList.remove('hidden');
+            renderResources();
+        }
+
+        function openAddModal() {
+            document.getElementById('resource-modal-title').textContent = 'Afegir Nou Recurs';
+            document.getElementById('res-id').value = '';
+            document.getElementById('res-name').value = '';
+            document.getElementById('res-url').value = '';
+            document.getElementById('res-icon').value = 'fa-solid fa-globe';
+            updateIconPreview();
+
+            const backdrop = document.getElementById('modal-resource-backdrop');
+            const modal = document.getElementById('modal-resource');
+            backdrop.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('scale-95', 'opacity-0');
+                modal.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function openEditModal(event, id) {
+            event.stopPropagation();
+            const res = window.resources.find(r => r.id === id);
+            if (!res) return;
+
+            document.getElementById('resource-modal-title').textContent = 'Editar Recurs';
+            document.getElementById('res-id').value = res.id;
+            document.getElementById('res-name').value = res.name;
+            document.getElementById('res-url').value = res.url;
+            document.getElementById('res-icon').value = res.icon || 'fa-solid fa-globe';
+            updateIconPreview();
+
+            const backdrop = document.getElementById('modal-resource-backdrop');
+            const modal = document.getElementById('modal-resource');
+            backdrop.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('scale-95', 'opacity-0');
+                modal.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeResourceModal() {
+            const backdrop = document.getElementById('modal-resource-backdrop');
+            const modal = document.getElementById('modal-resource');
+            modal.classList.remove('scale-100', 'opacity-100');
+            modal.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => { backdrop.classList.add('hidden'); }, 200);
+        }
+
+        function saveResource(event) {
+            event.preventDefault();
+            const id = document.getElementById('res-id').value;
+            const name = document.getElementById('res-name').value.trim();
+            const url = document.getElementById('res-url').value.trim();
+            const icon = document.getElementById('res-icon').value;
+
+            if (id) {
+                const index = window.resources.findIndex(r => r.id === id);
+                if (index !== -1) {
+                    window.resources[index] = { id, name, url, icon };
+                }
+            } else {
+                const newRes = {
+                    id: Date.now().toString(),
+                    name,
+                    url,
+                    icon
+                };
+                window.resources.push(newRes);
+            }
+
+            renderResources();
+            closeResourceModal();
+        }
+
+        function deleteResource(event, id) {
+            event.stopPropagation();
+            window.resources = window.resources.filter(r => r.id !== id);
+            if (window.activeResourceId === id) {
+                goHome();
+            }
+            renderResources();
+        }
+
+        function openHelpModal() {
+            const backdrop = document.getElementById('modal-help-backdrop');
+            const modal = document.getElementById('modal-help');
+            backdrop.classList.remove('hidden');
+            setTimeout(() => {
+                modal.classList.remove('scale-95', 'opacity-0');
+                modal.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeModal() {
+            const backdrop = document.getElementById('modal-help-backdrop');
+            const modal = document.getElementById('modal-help');
+            modal.classList.remove('scale-100', 'opacity-100');
+            modal.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => { backdrop.classList.add('hidden'); }, 200);
+        }
+
+        window.onload = function() {
+            initTheme();
+            renderResources();
+            renderIconGrid();
+            
+            document.addEventListener('mouseup', function(e) {
+                const sidebar = document.getElementById('sidebar');
+                if (sidebar && !sidebar.contains(e.target)) {
+                    collapseSidebar();
+                }
+            });
+        };
+    </script>
+</body>
+</html>
