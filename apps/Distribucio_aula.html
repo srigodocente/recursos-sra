@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Distribució d'aula</title>
+    <title>Distribució d'Aula</title>
     
     <!-- Tailwind CSS i Paleta Personalitzada (brand) -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -104,7 +104,7 @@
                     </div>
                     <div>
                         <h1 class="text-lg sm:text-xl font-extrabold text-white tracking-tight flex items-center gap-2">
-                            Distribució d'aula
+                            Distribució d'Aula
                         </h1>
                     </div>
                 </div>
@@ -181,7 +181,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 mb-1">Columnes</label>
-                        <input type="number" id="cols" min="1" max="12" value="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
+                        <input type="number" id="cols" min="1" max="12" value="4" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
                     </div>
                 </div>
 
@@ -271,16 +271,29 @@
             </div>
 
             <!-- Escenari (Contenidor del mapa) -->
-            <div id="stage" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-6 overflow-auto flex flex-col items-center justify-start min-h-[420px]">
+            <div id="stage" class="flex-1 bg-slate-50 border border-slate-200 rounded-xl p-4 sm:p-6 overflow-auto flex flex-col items-center justify-center min-h-[420px] relative">
                 
+                <!-- Estat buit (abans de generar) -->
+                <div id="placeholder" class="flex flex-col items-center justify-center text-center p-8 space-y-3">
+                    <div class="w-16 h-16 bg-indigo-50 text-indigo-500 rounded-2xl flex items-center justify-center text-2xl shadow-inner">
+                        <i class="fa-solid fa-border-none"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-700">La graella està oculta</h3>
+                        <p class="text-xs text-slate-500 max-w-xs mt-1">
+                            Configura l'estructura i els alumnes al panell esquerre i prem <strong>Generar</strong> per mostrar la distribució.
+                        </p>
+                    </div>
+                </div>
+
                 <!-- Pissarra Superior -->
-                <div id="boardTop" class="w-full max-w-md bg-slate-800 text-slate-200 text-center py-2 px-4 rounded-lg font-bold tracking-widest text-xs uppercase shadow-sm mb-6 flex items-center justify-center gap-2">
+                <div id="boardTop" class="w-full max-w-md bg-slate-800 text-slate-200 text-center py-2 px-4 rounded-lg font-bold tracking-widest text-xs uppercase shadow-sm mb-6 hidden items-center justify-center gap-2">
                     <i class="fa-solid fa-chalkboard text-slate-400"></i>
                     <span>PISSARRA</span>
                 </div>
 
                 <!-- Graella de Taules -->
-                <div id="map" class="grid gap-4 transition-all my-auto" style="zoom: var(--z, 1);"></div>
+                <div id="map" class="grid gap-4 transition-all my-auto hidden" style="zoom: var(--z, 1);"></div>
 
                 <!-- Pissarra Inferior (si està girada la vista) -->
                 <div id="boardBot" class="w-full max-w-md bg-slate-800 text-slate-200 text-center py-2 px-4 rounded-lg font-bold tracking-widest text-xs uppercase shadow-sm mt-6 hidden items-center justify-center gap-2">
@@ -382,7 +395,8 @@
             lock: [],
             sel: null,
             hist: [],
-            flip: false
+            flip: false,
+            generated: false
         };
 
         const per = () => S.cfg.types.reduce((a, b) => a + b, 0);
@@ -443,7 +457,7 @@
         }
 
         function snap() {
-            S.hist.push(JSON.stringify({ s: S.seat, l: S.lock, c: S.cfg }));
+            S.hist.push(JSON.stringify({ s: S.seat, l: S.lock, c: S.cfg, g: S.generated }));
             if (S.hist.length > 50) S.hist.shift();
         }
 
@@ -454,6 +468,7 @@
             S.seat = o.s;
             S.lock = o.l;
             S.cfg = o.c;
+            S.generated = !!o.g;
             syncUI();
             render();
         }
@@ -473,6 +488,7 @@
                 return;
             }
             snap();
+            S.generated = true;
             const seat = Array(total).fill(null), lock = Array(total).fill(false), used = new Set();
             
             S.seat.forEach((s, i) => {
@@ -551,7 +567,29 @@
         const col = h => `hsl(${h} 85% 92%)`;
 
         function render() {
-            const { rows, cols } = S.cfg, map = $('map'), bad = conflicts();
+            const map = $('map'), placeholder = $('placeholder');
+            
+            if (!S.generated) {
+                placeholder.classList.remove('hidden');
+                placeholder.classList.add('flex');
+                map.classList.add('hidden');
+                map.classList.remove('grid');
+                $('boardTop').classList.add('hidden');
+                $('boardTop').classList.remove('flex');
+                $('boardBot').classList.add('hidden');
+                $('boardBot').classList.remove('flex');
+                $('stat').textContent = '0/0 seients';
+                $('stat').className = 'text-xs font-bold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700';
+                $('legend').innerHTML = '';
+                return;
+            }
+
+            placeholder.classList.add('hidden');
+            placeholder.classList.remove('flex');
+            map.classList.remove('hidden');
+            map.classList.add('grid');
+
+            const { rows, cols } = S.cfg, bad = conflicts();
             const gl = [...new Set(S.seat.filter(s => s && s.group).map(s => s.group))].sort();
             const hue = g => HUES[gl.indexOf(g) % HUES.length];
             
@@ -561,8 +599,17 @@
             const R = [...Array(rows).keys()], C = [...Array(cols).keys()];
             if (S.flip) { R.reverse(); C.reverse(); }
 
-            $('boardTop').style.display = S.flip ? 'none' : 'flex';
-            $('boardBot').style.display = S.flip ? 'flex' : 'none';
+            if (S.flip) {
+                $('boardTop').classList.add('hidden');
+                $('boardTop').classList.remove('flex');
+                $('boardBot').classList.remove('hidden');
+                $('boardBot').classList.add('flex');
+            } else {
+                $('boardTop').classList.remove('hidden');
+                $('boardTop').classList.add('flex');
+                $('boardBot').classList.add('hidden');
+                $('boardBot').classList.remove('flex');
+            }
 
             const addLabel = (txt) => {
                 const d = document.createElement('div');
@@ -682,6 +729,7 @@
 
         function clearAllData() {
             snap();
+            S.generated = false;
             S.seat = Array(S.cfg.rows * per()).fill(null);
             S.lock = Array(S.seat.length).fill(false);
             S.sel = null;
@@ -700,6 +748,7 @@
             S.cfg = { rows: r, cols: t.length, types: t };
             S.seat = d.seat.map(s => s && { raw: String(s.raw || s.name), name: String(s.name), n: !!s.n, group: s.group ? String(s.group) : null });
             S.lock = Array.isArray(d.lock) ? d.lock : Array(S.seat.length).fill(false);
+            S.generated = true;
             
             $('list').value = d.text || d.studentsText || '';
             $('cname').value = d.cname || '';
