@@ -54,32 +54,88 @@
         }
         @media print {
             @page {
-                size: A4 landscape;
-                margin: 8mm;
+                size: auto;
+                margin: 5mm;
             }
-            body {
+            html, body {
+                height: 100vh !important;
+                max-height: 100vh !important;
+                overflow: hidden !important;
                 background: white !important;
                 color: black !important;
             }
-            .no-print {
+            .no-print, #legend, .mt-4.pt-3 {
                 display: none !important;
             }
             .print-title {
                 display: block !important;
+                margin-bottom: 0.25rem !important;
+            }
+            main {
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+                height: 98vh !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                align-items: center !important;
             }
             .stage-container {
                 border: none !important;
                 box-shadow: none !important;
                 background: transparent !important;
                 padding: 0 !important;
-                overflow: visible !important;
+                overflow: hidden !important;
+                width: 100% !important;
+                height: 100% !important;
+                display: flex !important;
+                flex-direction: column !important;
+                justify-content: center !important;
+                align-items: center !important;
+            }
+            #stage {
+                border: none !important;
+                background: transparent !important;
+                padding: 0 !important;
+                overflow: hidden !important;
+                width: 100% !important;
+                height: 100% !important;
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+            /* Garantir que només la pissarra activa (la que no té .hidden) es mostri */
+            #boardTop:not(.hidden), #boardBot:not(.hidden) {
+                display: flex !important;
+                margin-top: 0.25rem !important;
+                margin-bottom: 0.25rem !important;
+                padding-top: 0.25rem !important;
+                padding-bottom: 0.25rem !important;
+                background-color: #1e293b !important;
+                color: #f8fafc !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            #boardTop.hidden, #boardBot.hidden {
+                display: none !important;
             }
             #map {
-                zoom: var(--pz, 0.85);
+                transform-origin: center center;
+                zoom: var(--pz, 1);
             }
             .stu {
                 border: 1px solid #64748b !important;
                 box-shadow: none !important;
+                background: #ffffff !important;
+                color: #000000 !important;
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            /* Ocultar totes les etiquetes d'alumnes (n, grups, avisos i bloquejos) */
+            .stu span, .stu button {
+                display: none !important;
             }
             .seat {
                 border-style: dashed !important;
@@ -181,7 +237,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-500 mb-1">Columnes</label>
-                        <input type="number" id="cols" min="1" max="12" value="3" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
+                        <input type="number" id="cols" min="1" max="12" value="4" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-semibold text-slate-700 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500">
                     </div>
                 </div>
 
@@ -819,12 +875,34 @@
 
         // Ajust automàtic a la impressió
         function fitPrint() {
-            const m = $('map');
-            m.style.zoom = 1;
-            const w = m.offsetWidth, h = m.offsetHeight, aw = 1047 * 0.97, ah = (718 - 135) * 0.97;
-            const z = Math.min(aw / w, ah / h, 1.6);
-            document.documentElement.style.setProperty('--pz', z.toFixed(3));
-            m.style.zoom = '';
+            const stage = $('stage');
+            const map = $('map');
+            if (!map || map.classList.contains('hidden')) return;
+
+            map.style.zoom = 1;
+            
+            // Detectem orientació del paper/pantalla
+            const isLandscape = window.matchMedia("(orientation: landscape)").matches;
+            
+            // Definim marges màxims aproximats en px per a A4
+            const targetW = isLandscape ? 1040 : 720;
+            const targetH = isLandscape ? 680 : 960;
+
+            const mapWidth = map.offsetWidth || map.scrollWidth;
+            const mapHeight = map.offsetHeight || map.scrollHeight;
+
+            if (mapWidth > 0 && mapHeight > 0) {
+                // Reservem espai per al títol i la pissarra
+                const availW = targetW - 20;
+                const availH = targetH - 100;
+
+                const scaleX = availW / mapWidth;
+                const scaleY = availH / mapHeight;
+                const z = Math.min(scaleX, scaleY, 1.4);
+                
+                document.documentElement.style.setProperty('--pz', z.toFixed(3));
+            }
+            map.style.zoom = '';
         }
 
         window.addEventListener('beforeprint', fitPrint);
